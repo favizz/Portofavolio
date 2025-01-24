@@ -1,0 +1,19 @@
+{
+    "expo": {
+      "name": "Portofavolio",
+      "slug": "portofavolio",
+      "version": "1.0.0",
+      "sdkVersion": "49.0.0",
+      "platforms": ["ios", "android", "web"],
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "assetBundlePatterns": ["**/*"],
+      "entryPoint": "./src/App.tsx"
+    }
+  }
+  
