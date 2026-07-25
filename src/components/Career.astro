@@ -4,17 +4,6 @@ import { findRelatedProject } from '../data/relations';
 ---
 
 <section id="career" class="section">
-  <svg
-    class="flight-path"
-    viewBox="0 0 800 300"
-    preserveAspectRatio="xMidYMid slice"
-    aria-hidden="true"
-  >
-    <path d="M0,60 Q200,10 400,70 T800,50" />
-    <circle cx="60" cy="52" r="3" />
-    <circle cx="400" cy="70" r="3" />
-    <circle cx="740" cy="55" r="3" />
-  </svg>
   <div class="relative z-10 w-full">
     <div class="flex flex-col">
       <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
@@ -26,7 +15,7 @@ import { findRelatedProject } from '../data/relations';
     </div>
 
     <div
-      class="career-grid reveal mt-10 w-full"
+      class="career-grid reveal mt-6 w-full"
       data-reveal
       data-expand-grid
       data-hscroll
@@ -48,7 +37,7 @@ import { findRelatedProject } from '../data/relations';
             const related = findRelatedProject(job.tags);
             return (
               <article
-                class="expand-card group w-[340px] flex-shrink-0 md:w-[460px]"
+                class="expand-card group w-[270px] flex-shrink-0 md:w-[340px]"
                 data-expand-card
                 data-slug={job.slug}
                 tabindex="0"
@@ -56,7 +45,7 @@ import { findRelatedProject } from '../data/relations';
                 aria-label={`Open ${job.company} details`}
               >
                 <div class="card-face">
-                  <div class="glow-border relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+                  <div class="hover-border relative aspect-[16/10] w-full overflow-hidden rounded-xl">
                     <img
                       src="/images/placeholders/expand.webp"
                       alt={`${job.company} visual`}
@@ -86,7 +75,15 @@ import { findRelatedProject } from '../data/relations';
                   <p class="mt-1 pl-8 text-base text-text-muted">{job.company}</p>
                 </div>
 
-                <img src={job.logo} alt="" aria-hidden="true" loading="lazy" decoding="async" class="stage-bg-img" />
+                <div class="stage-media flex items-center justify-center bg-white p-10">
+                  <img
+                    src={job.logo}
+                    alt={`${job.company} logo`}
+                    loading="lazy"
+                    decoding="async"
+                    class="h-full w-full object-contain"
+                  />
+                </div>
 
                 <div class="card-detail relative z-10 w-full flex-1 p-6">
                   <button
@@ -136,26 +133,36 @@ import { findRelatedProject } from '../data/relations';
 </section>
 
 <style>
-  .flight-path {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    fill: color-mix(in srgb, var(--color-accent) 60%, transparent);
-    pointer-events: none;
-  }
-
-  .flight-path path {
-    fill: none;
-    stroke: color-mix(in srgb, var(--color-primary-light) 30%, transparent);
-    stroke-width: 1.5;
-    stroke-dasharray: 6 6;
-  }
-
+  /* Expanded career card: logo media left column, description fills the
+     remaining space, matching the Projects expanded layout. */
   .career-grid :global([data-expand-stage] .expand-card) {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     background: color-mix(in srgb, var(--color-primary-deep) 40%, transparent);
     border-radius: 0.75rem;
     overflow: hidden;
-    position: relative;
+  }
+
+  .career-grid :global([data-expand-stage] .expand-card .stage-media) {
+    width: 40%;
+    max-width: 340px;
+    flex-shrink: 0;
+  }
+
+  .career-grid :global([data-expand-stage] .expand-card .card-detail) {
+    flex: 1 1 auto;
+  }
+
+  @media (max-width: 640px) {
+    .career-grid :global([data-expand-stage] .expand-card) {
+      flex-direction: column;
+    }
+
+    .career-grid :global([data-expand-stage] .expand-card .stage-media) {
+      width: 100%;
+      max-width: none;
+      aspect-ratio: 16 / 9;
+    }
   }
 </style>

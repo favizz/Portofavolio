@@ -20,7 +20,6 @@ const stats = [
 ---
 
 <section id="about" class="section">
-  <div class="nebula" aria-hidden="true"></div>
   <div class="relative z-10 w-full">
     <div class="grid gap-12 lg:grid-cols-[1.3fr_1fr] lg:items-center">
       <div class="text-left">
@@ -31,7 +30,7 @@ const stats = [
           About Me
         </p>
         <h2
-          class="reveal mt-3 font-display text-6xl font-bold text-primary-strong md:text-7xl"
+          class="reveal mt-3 font-display text-6xl font-bold text-accent md:text-7xl"
           data-reveal
         >
           Crafting Reliable Software, One System at a Time
@@ -58,9 +57,7 @@ const stats = [
         data-reveal
         data-parallax-image
       >
-        <div class="absolute inset-0 -rotate-6 rounded-3xl border-2 border-accent/50"></div>
-        <div class="absolute inset-0 rotate-3 rounded-3xl border-2 border-primary-light/30"></div>
-        <div class="relative aspect-square overflow-hidden rounded-full border-2 border-white/10">
+        <div class="relative aspect-square overflow-hidden rounded-full">
           <img
             src="/images/profile.webp"
             alt="Favian Izza at work"
@@ -79,7 +76,7 @@ const stats = [
         stats.map((item) => (
           <a
             href={item.href}
-            class="reveal glow-border flex h-[90px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-primary-deep/40"
+            class="reveal hover-border flex h-[90px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-primary-deep/40"
             data-reveal
             aria-label={`Go to ${item.label.toLowerCase()}`}
           >
@@ -94,15 +91,3 @@ const stats = [
   </div>
 </section>
 
-<style>
-  .nebula {
-    position: absolute;
-    inset: -15% -5%;
-    background:
-      radial-gradient(ellipse 40% 35% at 18% 28%, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent 70%),
-      radial-gradient(ellipse 38% 42% at 78% 62%, color-mix(in srgb, var(--color-primary-strong) 26%, transparent), transparent 70%),
-      radial-gradient(ellipse 30% 26% at 45% 88%, color-mix(in srgb, var(--color-primary-light) 18%, transparent), transparent 70%);
-    filter: blur(50px);
-    pointer-events: none;
-  }
-</style>

@@ -12,7 +12,7 @@ import { education } from '../data/education';
     </p>
 
     <div
-      class="reveal mt-10 w-full"
+      class="academic-grid reveal mt-6 w-full"
       data-reveal
       data-expand-grid
       data-list
@@ -58,7 +58,15 @@ import { education } from '../data/education';
                 </span>
               </div>
 
-              <img src={entry.image} alt="" aria-hidden="true" loading="lazy" decoding="async" class="stage-bg-img" />
+              <div class="stage-media flex items-center justify-center bg-white p-10">
+                <img
+                  src={entry.image}
+                  alt={`${entry.school} logo`}
+                  loading="lazy"
+                  decoding="async"
+                  class="h-full w-full object-contain"
+                />
+              </div>
 
               <div class="card-detail relative z-10 w-full flex-1 p-6">
                 <button
@@ -103,3 +111,38 @@ import { education } from '../data/education';
     </div>
   </div>
 </section>
+
+<style>
+  /* Expanded academic entry: logo media left column, description fills the
+     remaining space, matching the Projects/Career expanded layout. */
+  .academic-grid :global([data-expand-stage] .expand-card) {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    background: color-mix(in srgb, var(--color-primary-deep) 40%, transparent);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .academic-grid :global([data-expand-stage] .expand-card .stage-media) {
+    width: 40%;
+    max-width: 340px;
+    flex-shrink: 0;
+  }
+
+  .academic-grid :global([data-expand-stage] .expand-card .card-detail) {
+    flex: 1 1 auto;
+  }
+
+  @media (max-width: 640px) {
+    .academic-grid :global([data-expand-stage] .expand-card) {
+      flex-direction: column;
+    }
+
+    .academic-grid :global([data-expand-stage] .expand-card .stage-media) {
+      width: 100%;
+      max-width: none;
+      aspect-ratio: 16 / 9;
+    }
+  }
+</style>

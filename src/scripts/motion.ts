@@ -236,7 +236,7 @@ function initExpandableGrids() {
     const defaultSlot = grid.querySelector<HTMLElement>('[data-expand-default]');
     const cards = Array.from(grid.querySelectorAll<HTMLElement>('[data-expand-card]'));
     const labels = Array.from(grid.querySelectorAll<HTMLElement>('[data-carousel-item]'));
-    if (!carousel || !stage || !defaultSlot) return;
+    if (!defaultSlot) return;
 
     // Sections with a horizontal card carousel (data-hscroll) pin in place
     // for exactly the scroll distance the row needs to fully translate, so
@@ -271,6 +271,28 @@ function initExpandableGrids() {
       hscrollTrigger = null;
       gsap.set(defaultSlot, { clearProps: 'transform' });
     }
+
+    createHscrollPin();
+
+    if (isHscroll) {
+      // Web fonts swapping in after first paint (or images loading below
+      // the fold) shift section heights, which silently stales the pin
+      // distance measured at init.
+      const resettle = () => {
+        if (grid.hasAttribute('data-expanded')) return;
+        destroyHscrollPin();
+        createHscrollPin();
+      };
+      if ('fonts' in document) {
+        document.fonts.ready.then(resettle);
+      }
+      window.addEventListener('load', resettle);
+    }
+
+    // Some hscroll grids (Certification) are pin-only: a scroll-driven row
+    // of cards with no click-to-expand stage. Nothing below this point
+    // applies without a carousel/stage to expand into.
+    if (!carousel || !stage) return;
 
     function syncLabels(slug: string) {
       const activeIndex = labels.findIndex((label) => label.dataset.slug === slug);
@@ -425,25 +447,6 @@ function initExpandableGrids() {
       if (detail.section !== sectionId) return;
       expand(detail.slug);
     });
-
-    createHscrollPin();
-
-    // Web fonts swapping in after first paint (or images loading below the
-    // fold) shift section heights, which silently stales the pin distance
-    // measured at init. Without this, a fresh page load can hand the
-    // carousel a wrong pin range that only "fixes itself" after some later
-    // resize/interaction forces a refresh.
-    if (isHscroll) {
-      const resettle = () => {
-        if (grid.hasAttribute('data-expanded')) return;
-        destroyHscrollPin();
-        createHscrollPin();
-      };
-      if ('fonts' in document) {
-        document.fonts.ready.then(resettle);
-      }
-      window.addEventListener('load', resettle);
-    }
   });
 }
 
@@ -536,44 +539,6 @@ function initScrollLock() {
   });
 }
 
-function initTyping() {
-  document.querySelectorAll<HTMLElement>('[data-typing]').forEach((el) => {
-    const roles = JSON.parse(el.dataset.typing ?? '[]') as string[];
-    const target = el.querySelector<HTMLElement>('[data-typing-text]');
-    if (!target || roles.length === 0) return;
-
-    let roleIndex = 0;
-    let charIndex = 0;
-    let deleting = false;
-
-    function tick() {
-      const current = roles[roleIndex];
-      if (!deleting) {
-        charIndex++;
-        target!.textContent = current.slice(0, charIndex);
-        if (charIndex === current.length) {
-          deleting = true;
-          setTimeout(tick, 1800);
-          return;
-        }
-        setTimeout(tick, 55);
-      } else {
-        charIndex--;
-        target!.textContent = current.slice(0, charIndex);
-        if (charIndex === 0) {
-          deleting = false;
-          roleIndex = (roleIndex + 1) % roles.length;
-          setTimeout(tick, 300);
-          return;
-        }
-        setTimeout(tick, 30);
-      }
-    }
-
-    tick();
-  });
-}
-
 function initOrbit() {
   document.querySelectorAll<HTMLElement>('[data-orbit]').forEach((el) => {
     gsap.to(el, { rotate: 360, duration: 30, repeat: -1, ease: 'none' });
@@ -616,15 +581,49 @@ function initHeroMorph() {
   );
 }
 
+// The side nav starts centered over Hero (matching the "landing has no left
+// nav yet" requirement, since opacity 0 makes it invisible at scroll top)
+// and morphs into its resting fixed-left position as the user scrolls
+// through Hero, finishing by the time About appears (same trigger range as
+// initHeroMorph's photo exit, so both complete together).
+function initNavMorph() {
+  const nav = document.querySelector<HTMLElement>('[data-side-nav]');
+  const heroSection = document.getElementById('home');
+  if (!nav || !heroSection) return;
+
+  const mm = gsap.matchMedia();
+  mm.add('(min-width: 768px)', () => {
+    const rect = nav.getBoundingClientRect();
+    const startX = window.innerWidth / 2 - rect.left - rect.width / 2;
+
+    gsap.fromTo(
+      nav,
+      { x: startX, opacity: 0, scale: 1.15 },
+      {
+        x: 0,
+        opacity: 1,
+        scale: 1,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: heroSection,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+      },
+    );
+  });
+}
+
 function init() {
   initSmoothScroll();
   initReveals();
   initParallax();
   initActiveSection();
   initGradientField();
-  initTyping();
   initOrbit();
   initHeroMorph();
+  initNavMorph();
   initExpandableGrids();
   initCrossLinks();
   initScrollLock();

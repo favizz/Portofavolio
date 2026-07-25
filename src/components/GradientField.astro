@@ -1,27 +1,7 @@
----
-const stars = Array.from({ length: 80 }).map(() => ({
-  top: Math.random() * 100,
-  left: Math.random() * 100,
-  size: Math.random() * 1.6 + 0.6,
-  delay: Math.random() * 6,
-  duration: 3 + Math.random() * 4,
-}));
----
-
 <div id="gradient-field" class="fixed inset-0 -z-10 overflow-hidden bg-bg">
   <div class="blob" data-blob="1"></div>
   <div class="blob" data-blob="2"></div>
   <div class="blob" data-blob="3"></div>
-  <div class="stars">
-    {
-      stars.map((star) => (
-        <span
-          class="star"
-          style={`top:${star.top}%; left:${star.left}%; width:${star.size}px; height:${star.size}px; animation-delay:${star.delay}s; animation-duration:${star.duration}s;`}
-        />
-      ))
-    }
-  </div>
   <div class="grain"></div>
 </div>
 
@@ -60,30 +40,6 @@ const stars = Array.from({ length: 80 }).map(() => ({
     background: var(--blob-3);
   }
 
-  .stars {
-    position: absolute;
-    inset: 0;
-  }
-
-  .star {
-    position: absolute;
-    border-radius: 999px;
-    background: white;
-    animation-name: twinkle;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
-  }
-
-  @keyframes twinkle {
-    0%,
-    100% {
-      opacity: 0.15;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-
   .grain {
     position: absolute;
     inset: 0;
@@ -95,10 +51,6 @@ const stars = Array.from({ length: 80 }).map(() => ({
   @media (prefers-reduced-motion: reduce) {
     .blob {
       filter: blur(80px);
-    }
-    .star {
-      animation: none;
-      opacity: 0.6;
     }
   }
 </style>

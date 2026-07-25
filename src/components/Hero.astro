@@ -14,77 +14,37 @@ const orbitIcons = orbitNames
       y: Math.sin(angle) * radius,
     };
   });
-
-const roles = ['Full Stack Software Engineer', 'Software Engineer Intern', 'Front-End Developer'];
 ---
 
 <section id="home" class="section overflow-hidden">
   <span class="wordmark" aria-hidden="true">FAVIAN</span>
 
-  <div class="relative z-10 grid w-full gap-16 lg:grid-cols-2 lg:items-center">
-    <div class="flex flex-col items-start text-left">
-      <p class="reveal font-body text-xl text-accent md:text-2xl" data-reveal>Hello! I am</p>
-      <h1
-        class="reveal font-display text-6xl font-bold leading-tight text-accent md:text-8xl"
-        data-reveal
-      >
-        Favian Izza
-      </h1>
-      <p
-        class="reveal mt-3 flex min-h-[1.6em] items-center font-display text-2xl font-semibold text-primary-light md:text-3xl"
-        data-reveal
-        data-typing={JSON.stringify(roles)}
-      >
-        <span data-typing-text></span><span class="ml-1 animate-pulse text-accent">|</span>
-      </p>
-      <p class="reveal mt-6 max-w-xl text-justify text-2xl leading-relaxed text-text-muted" data-reveal>
-        I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines,
-        and machine learning models written from scratch, then polished until they feel
-        production ready.
-      </p>
+  <div class="relative z-10 flex w-full items-center justify-center">
+    <div
+      class="relative mx-auto h-[26rem] w-64 sm:h-[30rem] sm:w-72 lg:h-[34rem] lg:w-80"
+      data-hero-photo
+    >
+      <img
+        src="/images/profile-cutout.webp"
+        alt="Portrait of Favian Izza"
+        class="relative h-full w-full object-contain drop-shadow-[0_30px_60px_rgba(76,134,224,0.35)]"
+      />
 
-      <a
-        href="/cv/Favian-Izza-CV.pdf"
-        target="_blank"
-        rel="noreferrer"
-        download
-        class="btn-interactive reveal mt-10 inline-flex items-center justify-center rounded-lg bg-primary-strong px-8 py-4 text-base font-semibold tracking-wide text-white md:text-lg"
-        data-reveal
-      >
-        View my CV here
-      </a>
-    </div>
-
-    <div class="flex justify-center lg:justify-end">
-      <div
-        class="relative flex h-80 w-80 items-center justify-center sm:h-96 sm:w-96 lg:h-[28rem] lg:w-[28rem]"
-        data-hero-photo
-      >
-        <div class="absolute inset-0 rounded-full bg-accent/25 blur-3xl"></div>
-        <div class="absolute inset-[10%] rounded-full border border-dashed border-accent/30"></div>
-
-        <img
-          src="/images/profile-cutout.webp"
-          alt="Portrait of Favian Izza"
-          class="relative h-[86%] w-[86%] object-contain drop-shadow-[0_30px_60px_rgba(76,134,224,0.35)]"
-        />
-
-        <div class="absolute inset-0" data-orbit>
-          {
-            orbitIcons.map((tech) => (
-              <div
-                class="absolute left-1/2 top-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-primary-light/30 bg-bg/70 backdrop-blur-md sm:h-11 sm:w-11"
-                style={`transform: translate(calc(-50% + ${tech.x}px), calc(-50% + ${tech.y}px));`}
-              >
-                {tech.path && (
-                  <svg viewBox="0 0 24 24" class="h-5 w-5" style={`fill: ${tech.glow}`}>
-                    <path d={tech.path} />
-                  </svg>
-                )}
-              </div>
-            ))
-          }
-        </div>
+      <div class="absolute inset-0" data-orbit>
+        {
+          orbitIcons.map((tech) => (
+            <div
+              class="absolute left-1/2 top-1/2 flex h-10 w-10 items-center justify-center rounded-xl border border-primary-light/30 bg-bg/70 backdrop-blur-md sm:h-11 sm:w-11"
+              style={`transform: translate(calc(-50% + ${tech.x}px), calc(-50% + ${tech.y}px));`}
+            >
+              {tech.path && (
+                <svg viewBox="0 0 24 24" class="h-5 w-5" style={`fill: ${tech.glow}`}>
+                  <path d={tech.path} />
+                </svg>
+              )}
+            </div>
+          ))
+        }
       </div>
     </div>
   </div>
@@ -94,11 +54,14 @@ const roles = ['Full Stack Software Engineer', 'Software Engineer Intern', 'Fron
   .wordmark {
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    left: 2rem;
+    right: 2rem;
+    transform: translateY(-50%);
+    text-align: center;
+    overflow: hidden;
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: clamp(8rem, 28vw, 26rem);
+    font-size: clamp(6rem, 26vw, 26rem);
     line-height: 1;
     color: color-mix(in srgb, var(--color-accent) 16%, transparent);
     white-space: nowrap;

@@ -3,20 +3,6 @@ import { projects } from '../data/projects';
 ---
 
 <section id="project" class="section">
-  <svg
-    class="constellation"
-    viewBox="0 0 800 400"
-    preserveAspectRatio="xMidYMid slice"
-    aria-hidden="true"
-  >
-    <line x1="140" y1="260" x2="400" y2="120" />
-    <line x1="400" y1="120" x2="660" y2="260" />
-    <line x1="400" y1="120" x2="400" y2="40" />
-    <circle cx="140" cy="260" r="4" />
-    <circle cx="400" cy="120" r="5" />
-    <circle cx="660" cy="260" r="4" />
-    <circle cx="400" cy="40" r="3" />
-  </svg>
   <div class="relative z-10 flex w-full flex-col">
     <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
       Projects
@@ -27,7 +13,7 @@ import { projects } from '../data/projects';
     </p>
 
     <div
-      class="project-grid reveal mt-10 w-full"
+      class="project-grid reveal mt-6 w-full"
       data-reveal
       data-expand-grid
       data-hscroll
@@ -47,7 +33,7 @@ import { projects } from '../data/projects';
         {
           projects.map((project, index) => (
             <article
-              class="expand-card group w-[340px] flex-shrink-0 md:w-[460px]"
+              class="expand-card group w-[270px] flex-shrink-0 md:w-[340px]"
               data-expand-card
               data-slug={project.slug}
               tabindex="0"
@@ -55,7 +41,7 @@ import { projects } from '../data/projects';
               aria-label={`Open ${project.name} details`}
             >
               <div class="card-face">
-                <div class="glow-border relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+                <div class="hover-border relative aspect-[16/10] w-full overflow-hidden rounded-xl">
                   <img
                     src={project.image}
                     alt={`${project.name} preview`}
@@ -132,17 +118,6 @@ import { projects } from '../data/projects';
 </section>
 
 <style>
-  .constellation {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    stroke: color-mix(in srgb, var(--color-primary-light) 35%, transparent);
-    stroke-width: 1;
-    fill: color-mix(in srgb, var(--color-accent) 70%, transparent);
-    pointer-events: none;
-  }
-
   /* Expanded project: image left column, description right column. */
   .project-grid :global([data-expand-stage] .expand-card) {
     display: flex;

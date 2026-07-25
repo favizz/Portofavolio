@@ -49,13 +49,13 @@ body {
    instead of the mobile header/hamburger. */
 @media (min-width: 768px) {
   .section {
-    padding-left: 12rem;
+    padding-left: 14rem;
   }
 }
 
 @media (min-width: 1024px) {
   .section {
-    padding-left: 14rem;
+    padding-left: 17rem;
   }
 }
 
@@ -78,23 +78,21 @@ body {
   font-weight: 600;
 }
 
-.glow-border {
+.hover-border {
   border: 1px solid color-mix(in srgb, var(--color-primary-light) 15%, transparent);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 
-.glow-border:hover {
+.hover-border:hover {
   border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
-  box-shadow: 0 0 28px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 
 .btn-interactive {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
 .btn-interactive:hover {
   transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--color-accent) 60%, transparent);
 }
 
 .back-arrow-icon {
@@ -114,7 +112,6 @@ body {
 
 .btn-interactive:active {
   transform: translateY(0) scale(0.96);
-  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--color-primary) 70%, transparent);
   filter: brightness(0.9);
 }
 
@@ -265,29 +262,16 @@ body {
 }
 
 [data-expand-stage] .expand-card {
+  width: 100% !important;
   min-height: 420px;
   align-items: flex-start;
   text-align: left;
   border-color: color-mix(in srgb, var(--color-accent) 70%, transparent) !important;
-  box-shadow: 0 0 40px -8px color-mix(in srgb, var(--color-accent) 80%, transparent);
 }
 
 [data-expand-stage] .expand-card .card-face {
   align-items: flex-start;
   text-align: left;
-}
-
-/* Logo-as-watermark treatment for expanded Career cards. */
-[data-expand-stage] .expand-card .logo-img {
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  width: 100%;
-  max-width: none;
-  border-radius: 0;
-  object-fit: cover;
-  opacity: 0.1;
-  z-index: 0;
 }
 
 /* heynesh-style list grids (Academic, Certification, Projects): the default
@@ -326,24 +310,11 @@ body {
   display: none;
 }
 
-/* Stage-only media: a normal image column (.stage-media) or a low-opacity
-   background watermark (.stage-bg-img). Hidden while collapsed. */
-.expand-card .stage-media,
-.expand-card .stage-bg-img {
+/* Stage-only media column, hidden while collapsed. */
+.expand-card .stage-media {
   display: none;
 }
 
 [data-expand-stage] .expand-card .stage-media {
   display: block;
-}
-
-[data-expand-stage] .expand-card .stage-bg-img {
-  display: block;
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-  opacity: 0.1;
-  z-index: 0;
 }

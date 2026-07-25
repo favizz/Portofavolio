@@ -6,6 +6,7 @@ export const certifications = [
     issuer: 'Microsoft',
     date: 'March 2026',
     image: '/images/placeholders/logo.webp',
+    documentUrl: 'https://drive.google.com/file/d/18OjjSIEtWju__RbhvunXi_mdmO6CkkXY/view',
   },
   {
     slug: 'ui-ept',
@@ -14,6 +15,7 @@ export const certifications = [
     issuer: 'LBI UI',
     date: 'March 2026',
     image: '/images/placeholders/logo.webp',
+    documentUrl: 'https://drive.google.com/file/d/1dmjumRFNUrRccP936auLNhoacXYdnEca/view',
   },
   {
     slug: 'bnsp-itil',
@@ -22,6 +24,7 @@ export const certifications = [
     issuer: 'LSP Inixindo',
     date: 'December 2025',
     image: '/images/placeholders/logo.webp',
+    documentUrl: 'https://drive.google.com/file/d/1sAFS-q38urbp6bRLrouUidHdjFzBEAO_/view',
   },
   // Dummy entries below only exist to exercise the horizontal carousel.
   {
@@ -31,6 +34,7 @@ export const certifications = [
     issuer: 'Placeholder',
     date: '2025',
     image: '/images/placeholders/logo.webp',
+    documentUrl: 'https://google.com',
     dummy: true,
   },
   {
@@ -40,6 +44,7 @@ export const certifications = [
     issuer: 'Placeholder',
     date: '2024',
     image: '/images/placeholders/logo.webp',
+    documentUrl: 'https://google.com',
     dummy: true,
   },
 ];

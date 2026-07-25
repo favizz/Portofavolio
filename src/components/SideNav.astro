@@ -1,5 +1,6 @@
 ---
-import { socials } from '../data/socials';
+import { projects } from '../data/projects';
+import { experience } from '../data/experience';
 
 const links = [
   { id: 'home', label: 'Home' },
@@ -12,12 +13,36 @@ const links = [
   { id: 'achievement', label: 'Achievement' },
   { id: 'contact', label: 'Contact' },
 ];
+
+const realProjects = projects.filter((p) => !('dummy' in p && p.dummy));
+
+const stats = [
+  { number: `${realProjects.length}+`, label: 'Projects' },
+  { number: `${experience.length}`, label: 'Experiences' },
+];
 ---
 
 <nav
-  class="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 flex-col items-start gap-8 lg:left-10 md:flex"
+  data-side-nav
+  class="fixed left-6 top-1/2 z-40 hidden w-52 -translate-y-1/2 flex-col items-start gap-7 lg:left-10 md:flex"
   aria-label="Section navigation"
 >
+  <p class="text-xs leading-relaxed text-primary-light/70">
+    I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
+    machine learning models written from scratch, then polished until they feel production ready.
+  </p>
+
+  <div class="flex items-baseline gap-6">
+    {
+      stats.map((stat) => (
+        <div>
+          <p class="font-display text-2xl font-bold text-white">{stat.number}</p>
+          <p class="text-[10px] uppercase tracking-wide text-text-muted">{stat.label}</p>
+        </div>
+      ))
+    }
+  </div>
+
   <div class="flex flex-col items-start gap-3">
     {
       links.map((link) => (
@@ -32,21 +57,7 @@ const links = [
     }
   </div>
 
-  <div class="flex flex-col items-start gap-4">
-    {
-      socials.map((social) => (
-        <a
-          href={social.url}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={social.label}
-          class="text-primary-light/60 transition-colors hover:text-white"
-        >
-          <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current">
-            <path d={social.path} />
-          </svg>
-        </a>
-      ))
-    }
-  </div>
+  <a href="mailto:izza.diasputra10@gmail.com" class="text-cta text-xs">
+    izza.diasputra10@gmail.com
+  </a>
 </nav>
