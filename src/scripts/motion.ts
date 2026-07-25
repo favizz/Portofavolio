@@ -315,6 +315,7 @@ function initExpandableGrids() {
     function collapse() {
       restoreOrder();
       grid.removeAttribute('data-expanded');
+      grid.removeAttribute('data-lenis-prevent');
       syncLabels('');
       gsap.fromTo(
         cards,
@@ -338,6 +339,7 @@ function initExpandableGrids() {
         restoreOrder();
         stage!.appendChild(card);
         grid.setAttribute('data-expanded', slug);
+        grid.setAttribute('data-lenis-prevent', '');
       });
 
       gsap.fromTo(
@@ -358,21 +360,37 @@ function initExpandableGrids() {
     });
 
     // The vertical carousel changes the selected item on scroll, the same
-    // way the horizontal carousel changes position on scroll: each wheel
-    // gesture over the label list steps to the next/previous card.
+    // way the horizontal carousel changes position on scroll: any wheel
+    // gesture over the expanded card region (stage or label list, not just
+    // the narrow label list) steps to the next/previous card instead of
+    // scrolling the main page. Lenis drives all scrolling on this page and
+    // does NOT respect a nested handler's event.preventDefault(), it only
+    // skips its own scroll handling for a wheel event whose composedPath
+    // includes an element carrying `data-lenis-prevent` (checked live, not
+    // cached at dispatch time). So blocking the page scroll means toggling
+    // that attribute on `grid`, not calling preventDefault. It's set the
+    // moment a card expands (baseline) and removed the instant a wheel
+    // gesture would move past the first/last card, so that exact gesture
+    // still reaches Lenis and the page resumes scrolling, mirroring the
+    // horizontal carousel's pin releasing once the row finishes.
     let wheelLock = false;
-    carousel.addEventListener(
+    grid.addEventListener(
       'wheel',
       (event) => {
         const expandedSlug = grid.getAttribute('data-expanded');
         if (!expandedSlug) return;
-        event.preventDefault();
-        if (wheelLock) return;
 
         const currentIndex = cards.findIndex((c) => c.dataset.slug === expandedSlug);
         const direction = event.deltaY > 0 ? 1 : -1;
         const nextIndex = Math.min(cards.length - 1, Math.max(0, currentIndex + direction));
-        if (nextIndex === currentIndex) return;
+
+        if (nextIndex === currentIndex) {
+          grid.removeAttribute('data-lenis-prevent');
+          return;
+        }
+
+        grid.setAttribute('data-lenis-prevent', '');
+        if (wheelLock) return;
 
         wheelLock = true;
         setTimeout(() => {
@@ -539,37 +557,69 @@ function initScrollLock() {
   });
 }
 
-function initOrbit() {
-  document.querySelectorAll<HTMLElement>('[data-orbit]').forEach((el) => {
-    gsap.to(el, { rotate: 360, duration: 30, repeat: -1, ease: 'none' });
-  });
+// The FAVIAN wordmark must always span exactly the width between its
+// container's left/right gaps (proportional fit), which a clamp()-based
+// font-size can only approximate. Measuring the natural width at a
+// reference size and rescaling guarantees an exact fit at any viewport
+// width, capped so it stays a header-sized title rather than growing tall
+// enough to collide with the photo below it.
+//
+// The photo's "10% air above head" is measured against the space left
+// below the header (not the full viewport), otherwise a tall header on
+// narrow screens would push its nav row down into the photo. Setting both
+// `top` and `bottom: 0` and leaving `height` unset lets the browser derive
+// the photo's height from the remaining space automatically.
+function initHeroLayout() {
+  const wordmark = document.querySelector<HTMLElement>('[data-wordmark]');
+  const header = document.querySelector<HTMLElement>('.hero-header');
+  const photo = document.querySelector<HTMLElement>('[data-hero-photo]');
+
+  function fit() {
+    if (wordmark) {
+      const parent = wordmark.parentElement;
+      if (parent) {
+        wordmark.style.fontSize = '100px';
+        const natural = wordmark.scrollWidth;
+        if (natural) {
+          const size = Math.min(144, (parent.clientWidth / natural) * 100);
+          wordmark.style.fontSize = `${size}px`;
+        }
+      }
+    }
+
+    if (header && photo) {
+      const headerBottom = header.getBoundingClientRect().bottom;
+      const available = Math.max(0, window.innerHeight - headerBottom);
+      const airAboveHead = available * 0.1;
+      photo.style.top = `${headerBottom + airAboveHead}px`;
+      photo.style.bottom = '0';
+      photo.style.height = 'auto';
+    }
+  }
+
+  fit();
+  window.addEventListener('resize', fit);
+  if ('fonts' in document) {
+    document.fonts.ready.then(fit);
+  }
 }
 
-// As the Hero scrolls out, the cutout photo blurs, lifts, and fades away
-// rather than traveling to a fixed nav position (the nav itself is now a
-// permanent side element, not something the photo needs to "become").
+// The Hero photo is fixed to the viewport (not the page), so scrolling
+// never moves it, it only blurs and fades away in place as Hero scrolls
+// out, rather than lifting/scaling toward some other position.
 function initHeroMorph() {
   const photo = document.querySelector<HTMLElement>('[data-hero-photo]');
   const heroSection = document.getElementById('home');
   if (!photo || !heroSection) return;
 
-  // A one-time entrance (not scroll-linked) on load, separate from the
-  // scroll-driven exit below. Both are owned by this function so nothing
-  // else (like initReveals) ever fights over this element's opacity.
-  gsap.from(photo, { opacity: 0, y: 32, duration: 0.9, delay: 0.3, ease: 'power3.out' });
+  gsap.from(photo, { opacity: 0, duration: 0.9, delay: 0.3, ease: 'power3.out' });
 
-  // Explicit from/to values (rather than letting GSAP infer "from" as
-  // whatever the current computed value happens to be) so this tween's
-  // scroll-progress-0 state is deterministic regardless of the entrance
-  // tween's timing.
   gsap.fromTo(
     photo,
-    { y: 0, scale: 1, opacity: 1, filter: 'blur(0px)' },
+    { opacity: 1, filter: 'blur(0px)' },
     {
-      y: -60,
-      scale: 0.92,
       opacity: 0,
-      filter: 'blur(24px)',
+      filter: 'blur(28px)',
       ease: 'none',
       scrollTrigger: {
         trigger: heroSection,
@@ -581,28 +631,22 @@ function initHeroMorph() {
   );
 }
 
-// The side nav starts centered over Hero (matching the "landing has no left
-// nav yet" requirement, since opacity 0 makes it invisible at scroll top)
-// and morphs into its resting fixed-left position as the user scrolls
-// through Hero, finishing by the time About appears (same trigger range as
-// initHeroMorph's photo exit, so both complete together).
-function initNavMorph() {
+// The side nav has no equivalent on Hero anymore (Hero has its own plain
+// nav row), so it simply fades in as Hero scrolls out rather than
+// traveling from a Hero-centered position, finishing by the time About
+// appears (same trigger range as initHeroMorph's photo fade).
+function initNavFadeIn() {
   const nav = document.querySelector<HTMLElement>('[data-side-nav]');
   const heroSection = document.getElementById('home');
   if (!nav || !heroSection) return;
 
   const mm = gsap.matchMedia();
   mm.add('(min-width: 768px)', () => {
-    const rect = nav.getBoundingClientRect();
-    const startX = window.innerWidth / 2 - rect.left - rect.width / 2;
-
     gsap.fromTo(
       nav,
-      { x: startX, opacity: 0, scale: 1.15 },
+      { opacity: 0 },
       {
-        x: 0,
         opacity: 1,
-        scale: 1,
         ease: 'none',
         scrollTrigger: {
           trigger: heroSection,
@@ -621,9 +665,9 @@ function init() {
   initParallax();
   initActiveSection();
   initGradientField();
-  initOrbit();
+  initHeroLayout();
   initHeroMorph();
-  initNavMorph();
+  initNavFadeIn();
   initExpandableGrids();
   initCrossLinks();
   initScrollLock();

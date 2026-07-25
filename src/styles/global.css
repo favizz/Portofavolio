@@ -35,12 +35,13 @@ body {
 }
 
 .section {
-  min-height: 90svh;
+  height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3.5rem 1.5rem;
+  padding: 2.5rem 1.5rem;
   position: relative;
+  overflow: hidden;
   scroll-margin-top: 5rem;
 }
 
@@ -49,13 +50,13 @@ body {
    instead of the mobile header/hamburger. */
 @media (min-width: 768px) {
   .section {
-    padding-left: 14rem;
+    padding-left: 18rem;
   }
 }
 
 @media (min-width: 1024px) {
   .section {
-    padding-left: 17rem;
+    padding-left: 19rem;
   }
 }
 
