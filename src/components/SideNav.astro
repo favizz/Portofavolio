@@ -1,0 +1,52 @@
+---
+import { socials } from '../data/socials';
+
+const links = [
+  { id: 'home', label: 'Home' },
+  { id: 'about', label: 'About Me' },
+  { id: 'academic', label: 'Academic' },
+  { id: 'certification', label: 'Certification' },
+  { id: 'project', label: 'Project' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'career', label: 'Career' },
+  { id: 'achievement', label: 'Achievement' },
+  { id: 'contact', label: 'Contact' },
+];
+---
+
+<nav
+  class="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 flex-col items-start gap-8 lg:left-10 md:flex"
+  aria-label="Section navigation"
+>
+  <div class="flex flex-col items-start gap-3">
+    {
+      links.map((link) => (
+        <a
+          href={`#${link.id}`}
+          class="nav-link text-sm font-medium tracking-wide text-primary-light/70 transition-colors hover:text-white"
+          data-section={link.id}
+        >
+          {link.label}
+        </a>
+      ))
+    }
+  </div>
+
+  <div class="flex flex-col items-start gap-4">
+    {
+      socials.map((social) => (
+        <a
+          href={social.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={social.label}
+          class="text-primary-light/60 transition-colors hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" class="h-4 w-4 fill-current">
+            <path d={social.path} />
+          </svg>
+        </a>
+      ))
+    }
+  </div>
+</nav>

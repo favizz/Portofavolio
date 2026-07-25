@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #05070c;
+  --color-bg-alt: #0a1220;
+  --color-primary: #0f1e35;
+  --color-primary-dark: #060c17;
+  --color-primary-deep: #0a1424;
+  --color-primary-strong: #16345c;
+  --color-primary-light: #dbe4f3;
+  --color-accent: #4c86e0;
+  --color-text-muted: #a9b4c4;
+
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+html {
+  background-color: var(--color-bg);
+}
+
+html.lenis,
+html.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+html.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+body {
+  color: white;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+.section {
+  min-height: 90svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  position: relative;
+  scroll-margin-top: 5rem;
+}
+
+/* Reserve room for the persistent left side nav so section content never
+   sits underneath it. Only needed at md+, where the side nav renders
+   instead of the mobile header/hamburger. */
+@media (min-width: 768px) {
+  .section {
+    padding-left: 12rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section {
+    padding-left: 14rem;
+  }
+}
+
+/* A clear boundary between sections, distinct from the "seamless scroll"
+   feel: the scroll motion itself stays smooth, but each section reads as
+   its own page rather than bleeding into the next. Solid color, not a
+   low-opacity wash, so the line itself is unmistakably visible. */
+.section + .section {
+  border-top: 1px solid var(--color-primary-strong);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(48px);
+  will-change: transform, opacity;
+}
+
+.nav-link[data-active="true"] {
+  color: white;
+  font-weight: 600;
+}
+
+.glow-border {
+  border: 1px solid color-mix(in srgb, var(--color-primary-light) 15%, transparent);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glow-border:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
+  box-shadow: 0 0 28px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.btn-interactive {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.btn-interactive:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--color-accent) 60%, transparent);
+}
+
+.back-arrow-icon {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  background-color: currentColor;
+  -webkit-mask-image: url('/images/icons/back-arrow.webp');
+  mask-image: url('/images/icons/back-arrow.webp');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.btn-interactive:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--color-primary) 70%, transparent);
+  filter: brightness(0.9);
+}
+
+/* Text-style call-to-action: highlighted text with an arrow, used instead
+   of boxed buttons for directional/navigation actions. */
+.text-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease, gap 0.2s ease;
+}
+
+.text-cta:hover {
+  color: white;
+  gap: 0.65rem;
+}
+
+/* Expand-to-carousel pattern shared by Projects, Career, and Academic.
+   The grid/carousel/stage containers are hooked via data-expand-*
+   attributes (not classes) so components can keep their own Tailwind
+   utility classes on the same elements without collision.
+   The carousel is a static list of name labels covering ALL items
+   (including the selected one, which stays highlighted); cards themselves
+   never move into the carousel. */
+[data-expand-grid] {
+  display: grid;
+  transition: gap 0.4s ease;
+}
+
+[data-expand-grid][data-expanded] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  [data-expand-grid][data-expanded] {
+    flex-direction: row;
+  }
+}
+
+[data-expand-carousel] {
+  display: none;
+}
+
+[data-expand-stage] {
+  display: none;
+}
+
+[data-expand-grid][data-expanded] [data-expand-carousel] {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  width: 100%;
+  flex-shrink: 0;
+  max-height: 35vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  [data-expand-grid][data-expanded] [data-expand-carousel] {
+    justify-content: center;
+    width: 200px;
+    max-height: 100%;
+  }
+}
+
+[data-expand-grid][data-expanded] [data-expand-stage] {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* While expanded, the not-selected cards stay hidden in the default slot. */
+[data-expand-grid][data-expanded] [data-expand-default] .expand-card {
+  display: none;
+}
+
+/* Carousel items, styled after dev/Frame-1-carousel-ref.png: a plain text
+   stack with no panel, border, or glow. The selected item is full-contrast
+   and the rest fade progressively with distance from it (data-dist set by
+   syncLabels in motion.ts). */
+.carousel-item {
+  cursor: pointer;
+  text-align: left;
+  padding: 0.4rem 0.25rem;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  color: white;
+  opacity: 0.12;
+  transition: opacity 0.3s ease, font-weight 0.3s ease;
+}
+
+.carousel-item[data-dist="2"] {
+  opacity: 0.25;
+}
+
+.carousel-item[data-dist="1"] {
+  opacity: 0.45;
+}
+
+.carousel-item:hover {
+  opacity: 0.7;
+}
+
+.carousel-item[data-active="true"] {
+  opacity: 1;
+  font-weight: 600;
+}
+
+.expand-card {
+  cursor: pointer;
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.expand-card .card-detail {
+  display: none;
+}
+
+[data-expand-stage] .expand-card .card-detail {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.expand-card .role-note,
+.expand-card .role-team {
+  display: none;
+}
+
+[data-expand-stage] .expand-card .role-note,
+[data-expand-stage] .expand-card .role-team {
+  display: inline-block;
+}
+
+[data-expand-stage] .expand-card {
+  min-height: 420px;
+  align-items: flex-start;
+  text-align: left;
+  border-color: color-mix(in srgb, var(--color-accent) 70%, transparent) !important;
+  box-shadow: 0 0 40px -8px color-mix(in srgb, var(--color-accent) 80%, transparent);
+}
+
+[data-expand-stage] .expand-card .card-face {
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Logo-as-watermark treatment for expanded Career cards. */
+[data-expand-stage] .expand-card .logo-img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+  border-radius: 0;
+  object-fit: cover;
+  opacity: 0.1;
+  z-index: 0;
+}
+
+/* heynesh-style list grids (Academic, Certification, Projects): the default
+   state is a stacked list of numbered rows, not a card grid. */
+[data-expand-grid][data-list] {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-expand-grid][data-list][data-expanded] {
+  flex-direction: row;
+}
+
+[data-expand-grid][data-list] [data-expand-stage] .expand-card .card-face,
+[data-expand-grid][data-hscroll] [data-expand-stage] .expand-card .card-face {
+  display: none;
+}
+
+/* heynesh-style horizontal card carousel (Projects, Certification, Career):
+   collapsed state is a row of fixed-width cards translated horizontally by
+   vertical scroll (initHorizontalCarousels in motion.ts). */
+[data-expand-grid][data-hscroll]:not([data-expanded]) {
+  display: block;
+  overflow: hidden;
+}
+
+[data-expand-grid][data-hscroll]:not([data-expanded]) [data-expand-default] {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1.5rem;
+  padding: 0.5rem 0.25rem;
+  will-change: transform;
+}
+
+[data-expand-grid][data-hscroll][data-expanded] [data-expand-default] {
+  display: none;
+}
+
+/* Stage-only media: a normal image column (.stage-media) or a low-opacity
+   background watermark (.stage-bg-img). Hidden while collapsed. */
+.expand-card .stage-media,
+.expand-card .stage-bg-img {
+  display: none;
+}
+
+[data-expand-stage] .expand-card .stage-media {
+  display: block;
+}
+
+[data-expand-stage] .expand-card .stage-bg-img {
+  display: block;
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  opacity: 0.1;
+  z-index: 0;
+}

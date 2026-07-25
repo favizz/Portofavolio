@@ -1,0 +1,45 @@
+export const certifications = [
+  {
+    slug: 'azure-ai-900',
+    short: 'Azure AI-900',
+    name: 'Microsoft Certified: Azure AI Fundamentals (AI-900)',
+    issuer: 'Microsoft',
+    date: 'March 2026',
+    image: '/images/placeholders/logo.webp',
+  },
+  {
+    slug: 'ui-ept',
+    short: 'UI EPT',
+    name: 'UI EPT (English Proficiency Test)',
+    issuer: 'LBI UI',
+    date: 'March 2026',
+    image: '/images/placeholders/logo.webp',
+  },
+  {
+    slug: 'bnsp-itil',
+    short: 'BNSP ITIL',
+    name: 'BNSP Certification: IT Service Management (ITIL)',
+    issuer: 'LSP Inixindo',
+    date: 'December 2025',
+    image: '/images/placeholders/logo.webp',
+  },
+  // Dummy entries below only exist to exercise the horizontal carousel.
+  {
+    slug: 'dummy-cloud',
+    short: 'Cloud Cert (Dummy)',
+    name: 'Cloud Practitioner (Dummy)',
+    issuer: 'Placeholder',
+    date: '2025',
+    image: '/images/placeholders/logo.webp',
+    dummy: true,
+  },
+  {
+    slug: 'dummy-scrum',
+    short: 'Scrum Cert (Dummy)',
+    name: 'Scrum Fundamentals (Dummy)',
+    issuer: 'Placeholder',
+    date: '2024',
+    image: '/images/placeholders/logo.webp',
+    dummy: true,
+  },
+];

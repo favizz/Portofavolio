@@ -1,0 +1,161 @@
+---
+import { experience } from '../data/experience';
+import { findRelatedProject } from '../data/relations';
+---
+
+<section id="career" class="section">
+  <svg
+    class="flight-path"
+    viewBox="0 0 800 300"
+    preserveAspectRatio="xMidYMid slice"
+    aria-hidden="true"
+  >
+    <path d="M0,60 Q200,10 400,70 T800,50" />
+    <circle cx="60" cy="52" r="3" />
+    <circle cx="400" cy="70" r="3" />
+    <circle cx="740" cy="55" r="3" />
+  </svg>
+  <div class="relative z-10 w-full">
+    <div class="flex flex-col">
+      <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
+        Career
+      </h2>
+      <p class="reveal mt-5 max-w-2xl text-justify text-2xl text-text-muted md:text-3xl" data-reveal>
+        Internships and roles that took me from lecture halls into production systems.
+      </p>
+    </div>
+
+    <div
+      class="career-grid reveal mt-10 w-full"
+      data-reveal
+      data-expand-grid
+      data-hscroll
+      data-expand-section="career"
+    >
+      <div data-expand-carousel>
+        {
+          experience.map((job) => (
+            <button type="button" class="carousel-item" data-carousel-item data-slug={job.slug}>
+              {job.company}
+            </button>
+          ))
+        }
+      </div>
+      <div data-expand-stage></div>
+      <div data-expand-default>
+        {
+          experience.map((job, index) => {
+            const related = findRelatedProject(job.tags);
+            return (
+              <article
+                class="expand-card group w-[340px] flex-shrink-0 md:w-[460px]"
+                data-expand-card
+                data-slug={job.slug}
+                tabindex="0"
+                role="button"
+                aria-label={`Open ${job.company} details`}
+              >
+                <div class="card-face">
+                  <div class="glow-border relative aspect-[4/3] w-full overflow-hidden rounded-xl">
+                    <img
+                      src="/images/placeholders/expand.webp"
+                      alt={`${job.company} visual`}
+                      loading="lazy"
+                      decoding="async"
+                      class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <span class="absolute bottom-3 right-3 flex h-16 w-16 items-center justify-center rounded-full bg-white p-2 shadow-lg">
+                      <img
+                        src={job.logo}
+                        alt={`${job.company} logo`}
+                        loading="lazy"
+                        decoding="async"
+                        class="h-full w-full rounded-full object-contain"
+                      />
+                    </span>
+                  </div>
+                  <div class="mt-3 flex items-baseline gap-3">
+                    <span class="font-display text-base font-semibold text-accent/70">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <h3 class="min-w-0 flex-1 font-display text-3xl font-semibold text-white transition-colors group-hover:text-accent">
+                      {job.role}
+                    </h3>
+                    <span class="text-sm text-text-muted">{job.period}</span>
+                  </div>
+                  <p class="mt-1 pl-8 text-base text-text-muted">{job.company}</p>
+                </div>
+
+                <img src={job.logo} alt="" aria-hidden="true" loading="lazy" decoding="async" class="stage-bg-img" />
+
+                <div class="card-detail relative z-10 w-full flex-1 p-6">
+                  <button
+                    class="btn-interactive absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-bg/80 text-lg text-white backdrop-blur"
+                    data-expand-back
+                    data-expand-ignore
+                    aria-label="Return to all roles"
+                  >
+                    <span class="back-arrow-icon" aria-hidden="true"></span>
+                  </button>
+
+                  <h3 class="font-display text-3xl font-semibold text-white">{job.role}</h3>
+                  <p class="mt-1 flex flex-wrap items-baseline gap-2 text-sm font-medium text-accent">
+                    <span>{job.company}</span>
+                    <span class="text-[11px] font-normal text-text-muted/60">
+                      ({job.companyNote})
+                    </span>
+                  </p>
+                  {job.team && <p class="text-sm text-text-muted">{job.team}</p>}
+                  <span class="mt-1 text-sm text-text-muted">{job.period}</span>
+
+                  <ul class="mt-3 max-w-xl list-disc space-y-1 pl-5 text-base text-text-muted">
+                    {job.bullets.map((bullet) => (
+                      <li>{bullet}</li>
+                    ))}
+                  </ul>
+
+                  {related && (
+                    <button
+                      type="button"
+                      data-expand-ignore
+                      data-open-section="project"
+                      data-open-slug={related.slug}
+                      class="text-cta mt-5 text-sm"
+                    >
+                      See related project: {related.name} <span aria-hidden="true">&#8594;</span>
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .flight-path {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: color-mix(in srgb, var(--color-accent) 60%, transparent);
+    pointer-events: none;
+  }
+
+  .flight-path path {
+    fill: none;
+    stroke: color-mix(in srgb, var(--color-primary-light) 30%, transparent);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 6;
+  }
+
+  .career-grid :global([data-expand-stage] .expand-card) {
+    background: color-mix(in srgb, var(--color-primary-deep) 40%, transparent);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+  }
+</style>

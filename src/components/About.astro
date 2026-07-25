@@ -1,0 +1,108 @@
+---
+import { projects } from '../data/projects';
+import { experience } from '../data/experience';
+import { technology } from '../data/technology';
+import { certifications } from '../data/certifications';
+import { achievements } from '../data/achievements';
+
+const linkClass = 'cursor-pointer font-medium text-accent transition-colors hover:text-white';
+
+const realProjects = projects.filter((p) => !('dummy' in p && p.dummy));
+const realCerts = certifications.filter((c) => !('dummy' in c && c.dummy));
+
+const stats = [
+  { number: `${realProjects.length}+`, label: 'PROJECTS', href: '#project' },
+  { number: `${experience.length}`, label: 'EXPERIENCES', href: '#career' },
+  { number: `${technology.length}+`, label: 'TECH', href: '#technology' },
+  { number: `${realCerts.length}`, label: 'CERTS', href: '#certification' },
+  { number: `${achievements.length}`, label: 'ACHIEVEMENTS', href: '#achievement' },
+];
+---
+
+<section id="about" class="section">
+  <div class="nebula" aria-hidden="true"></div>
+  <div class="relative z-10 w-full">
+    <div class="grid gap-12 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+      <div class="text-left">
+        <p
+          class="reveal text-sm font-semibold uppercase tracking-[0.3em] text-accent"
+          data-reveal
+        >
+          About Me
+        </p>
+        <h2
+          class="reveal mt-3 font-display text-6xl font-bold text-primary-strong md:text-7xl"
+          data-reveal
+        >
+          Crafting Reliable Software, One System at a Time
+        </h2>
+        <p class="reveal mt-6 text-justify text-2xl leading-relaxed text-text-muted" data-reveal>
+          {`I'm a fresh graduate in Information Systems & Technology from `}
+          <a href="#academic" class={linkClass}>Bandung Institute of Technology</a>
+          {` (GPA 3.61). Across internships at `}
+          <a href="#career" class={linkClass} data-open-section="career" data-open-slug="siemens">Siemens</a>
+          {`, `}
+          <a href="#career" class={linkClass} data-open-section="career" data-open-slug="toyota-astra-motor">Toyota Astra Motor</a>
+          {`, and `}
+          <a href="#career" class={linkClass} data-open-section="career" data-open-slug="tmmin">Toyota Motor Manufacturing Indonesia</a>
+          {`, I've shipped factory logging systems, IT asset platforms tracking thousands of devices, and OCR pipelines that reconcile thousands of records. Outside of internships, I build full-stack side projects end-to-end, from `}
+          <a href="#project" class={linkClass} data-open-section="project" data-open-slug="netflow">IoT telemetry backends</a>
+          {` to `}
+          <a href="#project" class={linkClass} data-open-section="project" data-open-slug="fraud-detection-system">fraud-detection ML pipelines</a>
+          {` written from scratch.`}
+        </p>
+      </div>
+
+      <div
+        class="reveal relative mx-auto w-[min(14rem,60vw)] md:w-64"
+        data-reveal
+        data-parallax-image
+      >
+        <div class="absolute inset-0 -rotate-6 rounded-3xl border-2 border-accent/50"></div>
+        <div class="absolute inset-0 rotate-3 rounded-3xl border-2 border-primary-light/30"></div>
+        <div class="relative aspect-square overflow-hidden rounded-full border-2 border-white/10">
+          <img
+            src="/images/profile.webp"
+            alt="Favian Izza at work"
+            width="640"
+            height="640"
+            loading="lazy"
+            decoding="async"
+            class="h-full w-full object-cover"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      {
+        stats.map((item) => (
+          <a
+            href={item.href}
+            class="reveal glow-border flex h-[90px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-primary-deep/40"
+            data-reveal
+            aria-label={`Go to ${item.label.toLowerCase()}`}
+          >
+            <h3 class="font-display text-3xl font-bold text-accent lg:text-4xl">{item.number}</h3>
+            <p class="mt-2 text-[10px] tracking-[2px] text-text-muted sm:text-xs sm:tracking-[3px]">
+              {item.label}
+            </p>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .nebula {
+    position: absolute;
+    inset: -15% -5%;
+    background:
+      radial-gradient(ellipse 40% 35% at 18% 28%, color-mix(in srgb, var(--color-accent) 30%, transparent), transparent 70%),
+      radial-gradient(ellipse 38% 42% at 78% 62%, color-mix(in srgb, var(--color-primary-strong) 26%, transparent), transparent 70%),
+      radial-gradient(ellipse 30% 26% at 45% 88%, color-mix(in srgb, var(--color-primary-light) 18%, transparent), transparent 70%);
+    filter: blur(50px);
+    pointer-events: none;
+  }
+</style>

@@ -1,0 +1,85 @@
+export const projects = [
+  {
+    slug: 'netflow',
+    name: 'Netflow',
+    tag: 'IoT Prepaid Utility Metering System',
+    period: 'Jun 2026',
+    image: '/images/placeholders/expand.webp',
+    description:
+      'A NestJS + MySQL backend streaming live MQTT telemetry from 2,444+ smart meters into prepaid token billing.',
+    highlights: [
+      '12-detector anomaly engine (tamper, reverse-flow, sensor-fault), hardened by 80+ Jest tests',
+      'Multi-tenant access secured with Google OAuth 2.0, JWT, and RBAC across buildings',
+    ],
+    tags: ['NestJS', 'MySQL', 'MQTT', 'JWT'],
+    url: 'https://drive.google.com/drive/folders/1Yo1Xu1pgWwON9hH7FGfrOcYH0vCQgCFK',
+  },
+  {
+    slug: 'genealogy-platform',
+    name: 'Genealogy Platform',
+    tag: 'Full-Stack System Design',
+    period: 'Mar 2026',
+    image: '/images/placeholders/expand.webp',
+    description:
+      'A full-stack application built on a shared-type monorepo, mapping complex, non-linear family structures.',
+    highlights: [
+      'Custom graph layout engine for complex family structures using BFS-based positioning',
+      'Interactive visualization with React Flow, supporting multi-parent and non-linear relationships',
+    ],
+    tags: ['NestJS', 'Next.js', 'PostgreSQL', 'React Flow'],
+    url: 'https://github.com/IlllIllIIIlIlIll/genyra-familytree',
+  },
+  {
+    slug: 'fraud-detection-system',
+    name: 'Fraud Detection System',
+    tag: 'Custom ML Pipeline',
+    period: 'Dec 2025',
+    image: '/images/placeholders/expand.webp',
+    description:
+      'An end-to-end fraud detection pipeline on 100k+ transactions with severe class imbalance (~14%).',
+    highlights: [
+      'Decision Tree, Logistic Regression, and KNN implemented from scratch, including gradient descent and L2 regularization',
+      'Improved fraud recall from 0.02 to 0.52 via class weighting and SMOTE, cutting false negatives 25x',
+    ],
+    tags: ['Python', 'Machine Learning', 'Scikit-learn'],
+    url: 'https://github.com/IlllIllIIIlIlIll/Fraud-Detection-using-Machine-Learning-Algorithm',
+  },
+  // Dummy entries below only exist to exercise the horizontal carousel.
+  // They are excluded from About's stats and flagged in dev/TASK.md.
+  {
+    slug: 'dummy-aurora',
+    name: 'Aurora Dashboard (Dummy)',
+    tag: 'Placeholder Entry',
+    period: '2025',
+    image: '/images/placeholders/expand.webp',
+    description: 'Dummy project used to test the horizontal carousel layout.',
+    highlights: ['Replace with a real project or remove'],
+    tags: [],
+    url: '#',
+    dummy: true,
+  },
+  {
+    slug: 'dummy-orbit',
+    name: 'Orbit Tracker (Dummy)',
+    tag: 'Placeholder Entry',
+    period: '2025',
+    image: '/images/placeholders/expand.webp',
+    description: 'Dummy project used to test the horizontal carousel layout.',
+    highlights: ['Replace with a real project or remove'],
+    tags: [],
+    url: '#',
+    dummy: true,
+  },
+  {
+    slug: 'dummy-nebula',
+    name: 'Nebula Notes (Dummy)',
+    tag: 'Placeholder Entry',
+    period: '2024',
+    image: '/images/placeholders/expand.webp',
+    description: 'Dummy project used to test the horizontal carousel layout.',
+    highlights: ['Replace with a real project or remove'],
+    tags: [],
+    url: '#',
+    dummy: true,
+  },
+];

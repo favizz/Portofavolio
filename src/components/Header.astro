@@ -1,0 +1,131 @@
+---
+import { socials } from '../data/socials';
+
+const links = [
+  { id: 'home', label: 'Home' },
+  { id: 'about', label: 'About Me' },
+  { id: 'academic', label: 'Academic' },
+  { id: 'certification', label: 'Certification' },
+  { id: 'project', label: 'Project' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'career', label: 'Career' },
+  { id: 'achievement', label: 'Achievement' },
+  { id: 'contact', label: 'Contact' },
+];
+---
+
+<header
+  class="fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-8 px-6 py-4 bg-primary-dark/70 backdrop-blur-md md:hidden"
+>
+  <a href="#home" class="relative z-40 font-display text-xl font-bold text-white">favian izza.</a>
+
+  <button
+    id="menu-toggle"
+    type="button"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+    aria-label="Toggle menu"
+    class="menu-toggle relative z-40 flex h-10 w-10 flex-col items-center justify-center gap-1.5"
+  >
+    <span class="menu-bar"></span>
+    <span class="menu-bar"></span>
+    <span class="menu-bar"></span>
+  </button>
+</header>
+
+<div
+  id="mobile-menu"
+  class="mobile-menu fixed inset-0 z-30 flex flex-col items-center justify-center gap-10 bg-bg/95 backdrop-blur-lg md:hidden"
+>
+  <nav class="flex flex-col items-center gap-6">
+    {
+      links.map((link) => (
+        <a
+          href={`#${link.id}`}
+          class="nav-link font-display text-2xl text-primary-light/80 transition-colors"
+          data-section={link.id}
+        >
+          {link.label}
+        </a>
+      ))
+    }
+  </nav>
+  <div class="flex gap-5">
+    {
+      socials.map((social) => (
+        <a
+          href={social.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={social.label}
+          class="btn-interactive flex h-11 w-11 items-center justify-center rounded-full bg-primary-deep text-primary-light hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" class="h-5 w-5 fill-current">
+            <path d={social.path} />
+          </svg>
+        </a>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .menu-bar {
+    width: 22px;
+    height: 2px;
+    border-radius: 999px;
+    background: white;
+    transition: transform 0.25s ease, opacity 0.2s ease;
+  }
+
+  .menu-toggle[aria-expanded='true'] .menu-bar:nth-child(1) {
+    transform: translateY(6.5px) rotate(45deg);
+  }
+
+  .menu-toggle[aria-expanded='true'] .menu-bar:nth-child(2) {
+    opacity: 0;
+  }
+
+  .menu-toggle[aria-expanded='true'] .menu-bar:nth-child(3) {
+    transform: translateY(-6.5px) rotate(-45deg);
+  }
+
+  .mobile-menu {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .mobile-menu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+</style>
+
+<script>
+  const toggle = document.getElementById('menu-toggle');
+  const menu = document.getElementById('mobile-menu');
+
+  if (toggle && menu) {
+    const closeMenu = () => {
+      menu.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      window.lenisInstance?.start();
+    };
+
+    const openMenu = () => {
+      menu.classList.add('is-open');
+      toggle.setAttribute('aria-expanded', 'true');
+      window.lenisInstance?.stop();
+    };
+
+    toggle.addEventListener('click', () => {
+      const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+      isOpen ? closeMenu() : openMenu();
+    });
+
+    menu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', closeMenu);
+    });
+  }
+</script>

@@ -1,0 +1,33 @@
+---
+import { achievements } from '../data/achievements';
+---
+
+<section id="achievement" class="section">
+  <div class="flex w-full flex-col">
+    <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
+      Achievement
+    </h2>
+    <p class="reveal mt-5 max-w-2xl text-justify text-2xl text-text-muted md:text-3xl" data-reveal>
+      Awards and competition results earned along the way.
+    </p>
+
+    <div class="reveal mt-10 flex w-full flex-col" data-reveal>
+      {
+        achievements.map((achievement, index) => (
+          <div class="group flex w-full items-baseline gap-5 border-b border-primary-light/10 px-2 py-6 transition-colors hover:bg-primary-light/5 md:gap-8">
+            <span class="font-display text-base font-semibold text-accent/70">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="font-display text-2xl font-semibold text-white transition-colors group-hover:text-accent md:text-3xl">
+                {achievement.title}
+              </h3>
+              <p class="mt-1 text-base text-text-muted">{achievement.org}</p>
+            </div>
+            <span class="hidden text-sm text-text-muted sm:block">{achievement.date}</span>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

@@ -1,0 +1,110 @@
+---
+import { technology } from '../data/technology';
+import { findTechRelation } from '../data/relations';
+---
+
+<section id="technology" class="section">
+  <div class="orbit-rings" aria-hidden="true">
+    <span class="ring ring-1"></span>
+    <span class="ring ring-2"></span>
+    <span class="ring ring-3"></span>
+  </div>
+  <div class="relative z-10 flex w-full flex-col items-center text-center">
+    <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
+      Technology
+    </h2>
+    <p class="reveal mt-6 max-w-xl text-xl text-text-muted md:text-2xl text-justify" data-reveal>
+      A toolkit built across internships and side projects: languages, frameworks, and tools I
+      reach for to ship full-stack systems. Tiles with a project or role behind them are
+      clickable.
+    </p>
+
+    <div class="mt-12 grid w-full grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
+      {
+        technology.map((tech) => {
+          const relation = findTechRelation(tech.name);
+          const Tag = relation ? 'button' : 'div';
+          return (
+            <Tag
+              type={relation ? 'button' : undefined}
+              class={`reveal glow-border group flex flex-col items-center gap-2 rounded-xl bg-primary-deep/40 p-4 ${relation ? 'cursor-pointer' : 'cursor-default'}`}
+              data-reveal
+              data-open-section={relation ? relation.type : undefined}
+              data-open-slug={relation ? relation.slug : undefined}
+              title={relation ? `See in ${relation.type === 'project' ? 'Projects' : 'Career'}: ${relation.label}` : undefined}
+              style={`--glow: ${tech.glow}`}
+            >
+              {tech.path ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  class="h-8 w-8 fill-current text-primary-light transition-colors group-hover:[color:var(--glow)]"
+                >
+                  <path d={tech.path} />
+                </svg>
+              ) : (
+                <span class="flex h-8 w-8 items-center justify-center text-xs font-bold text-primary-light transition-colors group-hover:[color:var(--glow)]">
+                  SQL
+                </span>
+              )}
+              <span class="text-xs text-text-muted">{tech.name}</span>
+            </Tag>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .orbit-rings {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .ring {
+    position: absolute;
+    border-radius: 999px;
+    border: 1px dashed color-mix(in srgb, var(--color-accent) 25%, transparent);
+    animation: spin-slow linear infinite;
+  }
+
+  .ring-1 {
+    width: 40vmin;
+    height: 40vmin;
+    animation-duration: 40s;
+  }
+
+  .ring-2 {
+    width: 60vmin;
+    height: 60vmin;
+    border-color: color-mix(in srgb, var(--color-primary-light) 15%, transparent);
+    animation-duration: 60s;
+    animation-direction: reverse;
+  }
+
+  .ring-3 {
+    width: 80vmin;
+    height: 80vmin;
+    border-color: color-mix(in srgb, var(--color-primary-strong) 12%, transparent);
+    animation-duration: 80s;
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring {
+      animation: none;
+    }
+  }
+</style>
