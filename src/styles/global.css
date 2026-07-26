@@ -328,7 +328,7 @@ body {
 
 /* heynesh-style horizontal card carousel (Projects, Certification, Career):
    collapsed state is a row of fixed-width cards translated horizontally by
-   vertical scroll (initHorizontalCarousels in motion.ts). */
+   vertical scroll (createHscrollPin in motion.ts), desktop only (md+). */
 [data-expand-grid][data-hscroll]:not([data-expanded]) {
   display: block;
   overflow: hidden;
@@ -340,6 +340,27 @@ body {
   gap: 1.5rem;
   padding: 0.5rem 0.25rem;
   will-change: transform;
+}
+
+/* Below md, createHscrollPin() (motion.ts) never creates the GSAP pin at
+   all, matching nesh's own approach of giving mobile a separate, simpler
+   treatment rather than reusing the desktop scroll-hijack effect (GSAP's
+   pin+scrub translate fought real touch/momentum scrolling, confirmed in
+   production as the row visually scrambling instead of translating
+   smoothly). The row falls back to plain native horizontal scroll here,
+   no JS involved: `overflow` flips from hidden to a touch-scrollable auto,
+   and `transform` is cleared since nothing is driving it anymore. */
+@media (max-width: 767px) {
+  [data-expand-grid][data-hscroll]:not([data-expanded]) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  [data-expand-grid][data-hscroll]:not([data-expanded]) [data-expand-default] {
+    will-change: auto;
+    transform: none !important;
+  }
 }
 
 [data-expand-grid][data-hscroll][data-expanded] [data-expand-default] {

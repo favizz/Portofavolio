@@ -216,7 +216,16 @@ function initExpandableGrids() {
     let hscrollTrigger: ScrollTrigger | null = null;
 
     function createHscrollPin() {
-      if (!isHscroll || !pinSection || hscrollTrigger) return;
+      // Desktop-only, matching initHeroFlip's own breakpoint. GSAP's
+      // pin+scrub technique for translating the row via vertical scroll
+      // fights real touch/momentum scrolling on phones (confirmed in
+      // production: the row visually scrambled instead of translating
+      // smoothly), the same class of problem nesh's own reference sidesteps
+      // by giving mobile its own separate, simpler hero image entirely
+      // rather than reusing the desktop effect. Below 768px the row instead
+      // falls back to plain native horizontal scroll (`overflow-x: auto` in
+      // global.css's mobile override), no GSAP involved at all.
+      if (!isHscroll || !pinSection || hscrollTrigger || window.innerWidth < 768) return;
       const distance = Math.max(0, defaultSlot!.scrollWidth - defaultSlot!.clientWidth);
       if (distance <= 0) return;
 
@@ -262,6 +271,15 @@ function initExpandableGrids() {
         document.fonts.ready.then(resettle);
       }
       window.addEventListener('load', resettle);
+
+      // Also resettle on resize (debounced), specifically so crossing the
+      // 768px breakpoint toggles the pin on/off: destroy always runs
+      // (harmless if there was no pin), create re-checks the width itself.
+      let hscrollResizeTimer: ReturnType<typeof setTimeout>;
+      window.addEventListener('resize', () => {
+        clearTimeout(hscrollResizeTimer);
+        hscrollResizeTimer = setTimeout(resettle, 200);
+      });
     }
 
     // Some hscroll grids (Certification) are pin-only: a scroll-driven row
@@ -547,6 +565,13 @@ const HERO_EXTRA_VH = 1.5;
 function heroTotalScroll() {
   return window.innerHeight * (1 + HERO_EXTRA_VH);
 }
+
+// The sidebar-to-footer fade (initFooterMorph) spans this many
+// viewport-heights of scroll too, matching heroTotalScroll()'s total
+// (1 + HERO_EXTRA_VH) so the closing transition feels as graceful and
+// unrushed as the opening one, instead of the sudden last-few-hundred-px
+// fade an earlier version used.
+const FOOTER_FADE_VH = 1 + HERO_EXTRA_VH;
 
 // The Hero photo is fixed to the viewport (not the page), so scrolling
 // never moves it, it only blurs and fades away in place as Hero scrolls
@@ -964,17 +989,20 @@ function initFooterMorph() {
       btnColorTween?.progress(0);
       return;
     }
+    // Progress is computed from CURRENT SCROLL POSITION relative to the
+    // document's true max scroll, not from Footer's own rect: an earlier
+    // version anchored "start" to Footer's top edge crossing 90% of the
+    // viewport, which is only reachable a few hundred px before the true
+    // end (bounded by Footer's own, usually modest, content height), so
+    // the fade felt sudden/rushed compared to the Hero-to-About morph,
+    // which was deliberately stretched to ~2.5 viewport-heights
+    // (HERO_EXTRA_VH). FOOTER_FADE_VH matches that same duration so the
+    // two transitions feel consistent, and since "end" is always the true
+    // max scroll, this stays reachable regardless of Footer's real height.
     const vh = window.innerHeight;
-    const footerRect = footer!.getBoundingClientRect();
-    // Fade starts once Footer's top edge is 90% down the viewport (barely
-    // peeking in from the bottom, near the very end of Contact's own
-    // scroll range) and finishes exactly at the document's true max
-    // scroll (Footer's top can never go below `vh - footerHeight`, Footer
-    // is the last element on the page), guaranteed reachable regardless
-    // of Footer's real height relative to the viewport.
-    const startTop = vh * 0.9;
-    const endTop = vh - footerRect.height;
-    const progress = Math.min(1, Math.max(0, (startTop - footerRect.top) / (startTop - endTop || 1)));
+    const maxScroll = document.documentElement.scrollHeight - vh;
+    const startScroll = maxScroll - vh * FOOTER_FADE_VH;
+    const progress = Math.min(1, Math.max(0, (window.scrollY - startScroll) / (maxScroll - startScroll || 1)));
     navFadeTween.progress(progress);
     btnColorTween?.progress(progress);
   }
