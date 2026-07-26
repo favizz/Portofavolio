@@ -6,10 +6,12 @@ import { findRelatedProject } from '../data/relations';
 <section id="career" class="section">
   <div class="relative z-10 w-full">
     <div class="flex flex-col">
-      <h2 class="reveal section-heading" data-reveal>Career</h2>
-      <p class="reveal section-desc" data-reveal>
-        Internships and roles that took me from lecture halls into production systems.
+      <p class="reveal text-sm font-semibold uppercase tracking-[0.3em] text-accent" data-reveal>
+        Career
       </p>
+      <h2 class="reveal section-heading mt-3" data-reveal>
+        Internships and roles that took me from lecture halls into production systems.
+      </h2>
     </div>
 
     <div
@@ -51,13 +53,13 @@ import { findRelatedProject } from '../data/relations';
                       decoding="async"
                       class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <span class="absolute bottom-3 right-3 flex h-16 w-16 items-center justify-center rounded-full bg-white p-2 shadow-lg">
+                    <span class="absolute bottom-1 right-1 flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2 shadow-lg">
                       <img
                         src={job.logo}
                         alt={`${job.company} logo`}
                         loading="lazy"
                         decoding="async"
-                        class="h-full w-full rounded-full object-contain"
+                        class="h-full w-full rounded-lg object-contain"
                       />
                     </span>
                   </div>

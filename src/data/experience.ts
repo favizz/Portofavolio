@@ -66,7 +66,7 @@ export const experience = [
     company: 'URPA ITB',
     companyType: 'type' as const,
     companyNote: 'Student organization, Bandung Institute of Technology',
-    role: 'Head of Communication and Media Division',
+    role: 'Division Head',
     team: null,
     period: 'May 2024 - Jul 2025',
     logo: '/images/companies/urpa.webp',

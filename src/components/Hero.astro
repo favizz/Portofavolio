@@ -15,6 +15,13 @@
     pointer-events: none;
   }
 
+  /* Fixed, static 90vh (top:10vh + bottom:0), never JS-driven. FAVIAN
+     behind it can be any size (it renders at z-index 0, below the photo's
+     6, so it can never visually collide, whatever it overlaps just shows
+     the photo on top), and the nav grid sits in the horizontal gap beside
+     the photo (see initHeroFlip, motion.ts), so neither needs the photo's
+     own position to make room for it. */
+
   .hero-photo-fixed img {
     height: 100%;
     width: auto;

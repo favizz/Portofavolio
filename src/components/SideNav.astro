@@ -35,7 +35,7 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
   aria-label="Section navigation"
 >
   <div class="nav-panel rounded-xl px-4 py-2" data-panel>
-    <span class="font-display text-base font-bold uppercase text-black" data-morph="name">Favian</span>
+    <span class="font-display text-base font-bold uppercase leading-none text-black" data-morph="name">Favian</span>
     <p class="mt-1 text-[11px] leading-snug text-black/70" data-morph="desc">
       I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
       machine learning models written from scratch, then polished until they feel production
@@ -43,11 +43,11 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
     </p>
   </div>
 
-  <div class="nav-panel overflow-hidden rounded-xl px-4 py-2" data-panel>
+  <div class="nav-panel rounded-xl px-4 py-2" data-panel>
     <div data-morph="stats" class="overflow-hidden">
-      <div class="marquee-track">
+      <div class="marquee-track opacity-0" data-hero-fade>
         {
-          [...stats, ...stats].map((stat) => (
+          [...stats, ...stats, ...stats].map((stat) => (
             <div class="flex flex-shrink-0 items-baseline gap-2 pr-6">
               <p class="font-display text-2xl font-bold">{stat.number}</p>
               <p class="text-[10px] uppercase tracking-wide opacity-60">{stat.label}</p>
@@ -76,7 +76,7 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
   <div class="nav-panel overflow-hidden rounded-xl px-4 py-2 opacity-0" data-panel data-hero-fade>
     <div class="marquee-track">
       {
-        [...companies, ...companies].map((company) => (
+        [...companies, ...companies, ...companies].map((company) => (
           <span class="flex h-7 w-16 flex-shrink-0 items-center justify-center">
             <img
               src={company.logo}
@@ -106,8 +106,8 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
   <a
     href="#contact"
     data-morph="contact"
-    class="btn-interactive rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white opacity-0"
     data-hero-fade
+    class="btn-interactive rounded-lg bg-black px-4 py-2 text-center text-sm font-semibold text-white opacity-0"
   >
     Contact Me
   </a>
@@ -126,24 +126,17 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
     display: none;
   }
 
+  /* No CSS animation here on purpose: the scrolling is driven by GSAP in
+     initMarquees() (motion.ts). A CSS @keyframes version was silently
+     disabled by `prefers-reduced-motion: reduce`, which is on far more
+     often than it appears (Windows 11 sets it whenever "Show animations in
+     Windows" is off, and it's forced on in automated browsers), so the
+     marquees sat still for the user while every check of the markup looked
+     correct. Three copies of the list are still rendered below, GSAP
+     translates the track by exactly one third of its measured width to
+     loop seamlessly. */
   .marquee-track {
     display: flex;
     width: max-content;
-    animation: marquee 16s linear infinite;
-  }
-
-  @keyframes marquee {
-    from {
-      transform: translateX(-50%);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .marquee-track {
-      animation: none;
-    }
   }
 </style>
