@@ -1,126 +1,17 @@
----
-import { projects } from '../data/projects';
-import { experience } from '../data/experience';
-
-const realProjects = projects.filter((p) => !('dummy' in p && p.dummy));
-
-const links = [
-  { id: 'home', label: 'Home' },
-  { id: 'about', label: 'About Me' },
-  { id: 'academic', label: 'Academic' },
-  { id: 'certification', label: 'Certification' },
-  { id: 'project', label: 'Project' },
-  { id: 'technology', label: 'Technology' },
-  { id: 'career', label: 'Career' },
-  { id: 'achievement', label: 'Achievement' },
-  { id: 'contact', label: 'Contact' },
-];
----
-
 <section id="home" class="section hero-section overflow-hidden">
-  <div class="hero-header">
-    <span class="wordmark" data-wordmark aria-hidden="true">FAVIAN</span>
-    <nav class="hero-nav" aria-label="Section navigation">
-      {
-        links.map((link, index) => (
-          <>
-            <a href={`#${link.id}`} class="hero-nav-link">
-              {link.label}
-            </a>
-            {index < links.length - 1 && (
-              <span class="hero-nav-sep" aria-hidden="true">
-                |
-              </span>
-            )}
-          </>
-        ))
-      }
-    </nav>
-  </div>
-
-  <div class="hero-fill hero-fill-left">
-    <p class="text-sm leading-relaxed text-primary-light/70">
-      I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
-      machine learning models written from scratch, then polished until they feel production
-      ready.
-    </p>
-  </div>
-
-  <div class="hero-fill hero-fill-right">
-    <div>
-      <p class="font-display text-3xl font-bold text-white">{realProjects.length}+</p>
-      <p class="text-xs uppercase tracking-wide text-text-muted">Projects</p>
-    </div>
-    <div>
-      <p class="font-display text-3xl font-bold text-white">{experience.length}</p>
-      <p class="text-xs uppercase tracking-wide text-text-muted">Experiences</p>
-    </div>
-  </div>
-
   <div class="hero-photo-fixed" data-hero-photo>
     <img src="/images/profile-cutout.webp" alt="Portrait of Favian Izza" />
   </div>
 </section>
 
 <style>
-  .hero-header {
-    position: absolute;
-    top: 2rem;
-    left: 2rem;
-    right: 2rem;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .wordmark {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(4rem, 18vw, 9rem);
-    line-height: 1;
-    color: color-mix(in srgb, var(--color-accent) 16%, transparent);
-    white-space: nowrap;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .hero-nav {
-    display: none;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-  }
-
-  @media (min-width: 768px) {
-    .hero-nav {
-      display: flex;
-    }
-  }
-
-  .hero-nav-link {
-    transition: color 0.2s ease;
-  }
-
-  .hero-nav-link:hover {
-    color: white;
-  }
-
-  .hero-nav-sep {
-    opacity: 0.4;
-  }
-
   .hero-photo-fixed {
     position: fixed;
     left: 50%;
     top: 10vh;
     bottom: 0;
     transform: translateX(-50%);
-    z-index: 5;
+    z-index: 6;
     pointer-events: none;
   }
 
@@ -128,38 +19,5 @@ const links = [
     height: 100%;
     width: auto;
     display: block;
-  }
-
-  .hero-fill {
-    display: none;
-    position: absolute;
-    bottom: 12%;
-    z-index: 10;
-    width: 15rem;
-  }
-
-  @media (min-width: 1024px) {
-    .hero-fill {
-      display: block;
-    }
-  }
-
-  .hero-fill-left {
-    left: 2rem;
-    text-align: left;
-  }
-
-  .hero-fill-right {
-    right: 2rem;
-    display: none;
-    flex-direction: column;
-    gap: 1rem;
-    text-align: right;
-  }
-
-  @media (min-width: 1024px) {
-    .hero-fill-right {
-      display: flex;
-    }
   }
 </style>

@@ -4,12 +4,9 @@ import { projects } from '../data/projects';
 
 <section id="project" class="section">
   <div class="relative z-10 flex w-full flex-col">
-    <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
-      Projects
-    </h2>
-    <p class="reveal mt-5 max-w-2xl text-justify text-2xl text-text-muted md:text-3xl" data-reveal>
-      Selected builds spanning IoT telemetry, full-stack platforms, and machine learning written
-      from scratch.
+    <h2 class="reveal section-heading" data-reveal>Projects</h2>
+    <p class="reveal section-desc" data-reveal>
+      Selected builds spanning IoT telemetry, full-stack platforms, and machine learning.
     </p>
 
     <div
@@ -33,7 +30,7 @@ import { projects } from '../data/projects';
         {
           projects.map((project, index) => (
             <article
-              class="expand-card group w-[270px] flex-shrink-0 md:w-[340px]"
+              class="expand-card group w-[300px] flex-shrink-0 md:w-[380px]"
               data-expand-card
               data-slug={project.slug}
               tabindex="0"
@@ -41,7 +38,7 @@ import { projects } from '../data/projects';
               aria-label={`Open ${project.name} details`}
             >
               <div class="card-face">
-                <div class="hover-border relative aspect-[16/10] w-full overflow-hidden rounded-xl">
+                <div class="hover-border relative aspect-[4/3] w-full overflow-hidden rounded-xl">
                   <img
                     src={project.image}
                     alt={`${project.name} preview`}

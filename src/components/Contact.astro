@@ -5,18 +5,24 @@ const inputClass =
 
 <section id="contact" class="section">
   <div class="flex w-full flex-col items-start text-left">
-    <h2 class="reveal font-display text-6xl font-bold text-accent md:text-7xl" data-reveal>
-      Contact
-    </h2>
-    <p class="reveal mt-4 max-w-xl text-xl text-text-muted md:text-2xl" data-reveal>
+    <h2 class="reveal section-heading" data-reveal>Contact</h2>
+    <p class="reveal section-desc" data-reveal>
       Have a project in mind or just want to say hello? Send me a message.
     </p>
 
-    <form id="contact-form" class="reveal mt-10 w-full max-w-2xl" data-reveal>
+    <form id="contact-form" class="reveal mt-10 w-full" data-reveal>
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="flex flex-col gap-2 text-left text-sm text-text-muted">
           Name
-          <input type="text" name="name" required placeholder="Your name" class={inputClass} />
+          <input
+            type="text"
+            name="name"
+            required
+            minlength="2"
+            maxlength="80"
+            placeholder="Your name"
+            class={inputClass}
+          />
         </label>
         <label class="flex flex-col gap-2 text-left text-sm text-text-muted">
           Email
@@ -24,6 +30,7 @@ const inputClass =
             type="email"
             name="email"
             required
+            maxlength="254"
             placeholder="you@example.com"
             class={inputClass}
           />
@@ -35,6 +42,8 @@ const inputClass =
           type="text"
           name="subject"
           required
+          minlength="3"
+          maxlength="120"
           placeholder="What is this about?"
           class={inputClass}
         />
@@ -44,6 +53,8 @@ const inputClass =
         <textarea
           name="message"
           required
+          minlength="10"
+          maxlength="2000"
           rows="5"
           placeholder="Your message"
           class={inputClass}

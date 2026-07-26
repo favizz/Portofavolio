@@ -74,6 +74,30 @@ body {
   will-change: transform, opacity;
 }
 
+/* Shared fluid typography for every section's heading/intro line, sized by
+   clamp() (viewport-relative, no abrupt breakpoint jump) instead of
+   stepped Tailwind text-6xl/md:text-7xl utilities. The intro line is
+   capped to a single line spanning the full content width at a smaller
+   size, freeing vertical space for the actual content (cards, lists)
+   below it, don't reintroduce a multi-line max-w-capped paragraph here. */
+.section-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.75rem, 6vw, 4.5rem);
+  line-height: 1.05;
+  color: var(--color-accent);
+}
+
+.section-desc {
+  margin-top: 0.75rem;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+  color: var(--color-text-muted);
+}
+
 .nav-link[data-active="true"] {
   color: white;
   font-weight: 600;
