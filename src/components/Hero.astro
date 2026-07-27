@@ -1,10 +1,82 @@
+---
+import { projects } from '../data/projects';
+import { experience } from '../data/experience';
+import { certifications } from '../data/certifications';
+import { achievements } from '../data/achievements';
+
+const realProjects = projects.filter((p) => !('dummy' in p && p.dummy));
+const realCerts = certifications.filter((c) => !('dummy' in c && c.dummy));
+
+const mobileStats = [
+  { number: `${realProjects.length}+`, label: 'Projects' },
+  { number: `${experience.length}`, label: 'Experiences' },
+  { number: `${realCerts.length}`, label: 'Certs' },
+  { number: `${achievements.length}`, label: 'Achievements' },
+];
+---
+
 <section id="home" class="section hero-section overflow-hidden">
-  <div class="hero-photo-fixed" data-hero-photo>
+  <div class="hero-photo-fixed hidden md:block" data-hero-photo>
     <img src="/images/profile-cutout.webp" alt="Portrait of Favian Izza" />
+  </div>
+
+  <!-- Mobile only (md:hidden): the desktop Hero above is the SideNav's own
+       elements FLIP-morphed into place, which only exists md+ (the sidebar
+       itself is hidden below that breakpoint). Below md this is its own,
+       separate, simpler composition, not a shrunk copy of the desktop
+       effect: a real heading (own scale, not the edge-to-edge wordmark),
+       and the photo treated as a floated object with `shape-outside` so
+       the bio paragraph actually wraps around its silhouette instead of
+       sitting in a fixed column beside a fixed image, matching the
+       intended "picture as an object, text wraps through" that only
+       works when the photo participates in normal document flow (a
+       `position: fixed` element, like the desktop photo above, can't be
+       floated at all). -->
+  <div class="mobile-hero">
+    <p class="mobile-hero-eyebrow reveal" data-reveal>Home</p>
+    <h1 class="mobile-hero-heading reveal" data-reveal>FAVIAN</h1>
+    <div class="mobile-hero-body reveal" data-reveal>
+      <img src="/images/profile-cutout.webp" alt="Portrait of Favian Izza" class="mobile-hero-photo" />
+      <p class="mobile-hero-bio">
+        I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
+        machine learning models written from scratch, then polished until they feel production ready.
+      </p>
+    </div>
+    <div class="mobile-hero-stats reveal" data-reveal>
+      {
+        mobileStats.map((stat) => (
+          <div class="mobile-stat">
+            <p class="mobile-stat-num">{stat.number}</p>
+            <p class="mobile-stat-label">{stat.label}</p>
+          </div>
+        ))
+      }
+    </div>
   </div>
 </section>
 
 <style>
+  /* Explicit z-index, required once initHeroFlip's Hero pin exists
+     (motion.ts): GSAP's pin mechanism sets this SECTION itself to
+     `position: fixed` for the duration of the pin, without ever setting
+     its own z-index (stays `auto`). `position: fixed` always creates a
+     new stacking context regardless of z-index, so the photo's own
+     `z-index: 6` below stopped being compared against the SIDEBAR's
+     z-index: 4 directly, it got trapped inside THIS section's context,
+     which as a whole then stacked as an auto/0-layer sibling below the
+     sidebar's explicit, positive z-index: 4. Confirmed with
+     elementFromPoint() at coordinates squarely inside the photo: FAVIAN's
+     span was the topmost element there, painting in front of the photo
+     despite the photo's own z-index reading 6 in isolation. A number
+     bigger than the sidebar's 4 here (this section, not the photo, since
+     the photo is what's actually trapped) fixes it regardless of whether
+     Hero is currently pinned (position: static, where z-index has no
+     effect) or mid-pin (position: fixed, where it does).
+     */
+  .hero-section {
+    z-index: 5;
+  }
+
   .hero-photo-fixed {
     position: fixed;
     left: 50%;
@@ -26,5 +98,113 @@
     height: 100%;
     width: auto;
     display: block;
+  }
+
+  /* display toggled here, in a real media query, rather than relying on a
+     Tailwind `md:hidden` utility class on the element: Astro's scoped
+     styles add a data-attribute selector that out-specifies a plain
+     utility class regardless of source order, so `md:hidden` was silently
+     losing to this block's own `display: flex` and both the mobile AND
+     desktop Hero content were rendering at once. Confirmed via
+     getComputedStyle at a desktop-width viewport reading `display: flex`
+     here when it should have read `none`. */
+  .mobile-hero {
+    display: none;
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.85rem;
+    padding: 1.5rem 1.25rem;
+  }
+
+  @media (max-width: 767px) {
+    .mobile-hero {
+      display: flex;
+    }
+  }
+
+  .mobile-hero-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  .mobile-hero-heading {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 0.95;
+    /* Its own scale, deliberately not the desktop wordmark shrunk down,
+       a full-bleed edge-to-edge FAVIAN doesn't fit a narrow viewport's
+       reading flow the way it can dominate a wide desktop screen. */
+    font-size: clamp(2.5rem, 15vw, 3.5rem);
+    color: white;
+  }
+
+  .mobile-hero-body {
+    /* Not flex: 1 1 auto: that stretched this block to fill all remaining
+       vertical space regardless of its own (much shorter) content height,
+       leaving a large dead gap between the bio paragraph and the stats
+       row below. Sized to its own content, letting the wrapper's
+       `justify-content: center` handle vertical centering of the group
+       as a whole instead. */
+    flex: 0 1 auto;
+    /* Contains the float: without this, the section's own height wouldn't
+       account for the floated photo extending past the paragraph's own
+       (shorter) content height. */
+    overflow: hidden;
+  }
+
+  .mobile-hero-photo {
+    float: right;
+    width: 44%;
+    max-width: 12rem;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    margin: 0 -0.5rem 0.6rem 1rem;
+    /* The actual "picture as an object, text wraps through" request: a
+       real CSS shape-outside, computed from the cutout's own alpha
+       channel (a clean binary mask, confirmed by sampling pixel alpha
+       values directly, no soft/semi-transparent edges to confuse the
+       shape), only possible because this image is a normal floated
+       element, unlike the desktop photo above which is `position: fixed`
+       and can never be floated or shape-wrapped around at all. */
+    shape-outside: url('/images/profile-cutout.webp');
+    shape-image-threshold: 0.5;
+    shape-margin: 0.85rem;
+  }
+
+  .mobile-hero-bio {
+    font-size: clamp(0.85rem, 3.6vw, 0.95rem);
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .mobile-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+  }
+
+  .mobile-stat {
+    text-align: center;
+  }
+
+  .mobile-stat-num {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.05rem, 5vw, 1.4rem);
+    color: var(--color-accent);
+  }
+
+  .mobile-stat-label {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.6);
   }
 </style>

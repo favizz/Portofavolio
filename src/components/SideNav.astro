@@ -31,7 +31,7 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
 
 <nav
   data-side-nav
-  class="fixed left-2 top-1/2 z-[4] hidden w-[clamp(13rem,16vw,17rem)] -translate-y-1/2 flex-col gap-1.5 lg:left-3 md:flex"
+  class="fixed left-2 top-1/2 z-[4] hidden w-[clamp(11rem,13vw,14rem)] -translate-y-1/2 flex-col gap-1.5 lg:left-3 md:flex"
   aria-label="Section navigation"
 >
   <div class="nav-panel rounded-xl px-4 py-2" data-panel>
@@ -63,7 +63,7 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
       links.map((link) => (
         <a
           href={`#${link.id}`}
-          class="nav-link w-full rounded-lg px-2 py-0.5 text-sm font-medium tracking-wide text-black/70 transition-colors hover:bg-black/5 hover:text-black"
+          class="nav-link rounded-lg px-2 py-0.5 text-sm font-medium tracking-wide text-black/70 transition-colors hover:bg-black/5 hover:text-black"
           data-section={link.id}
           data-morph-link={link.id}
         >

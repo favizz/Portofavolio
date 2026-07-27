@@ -83,8 +83,14 @@ function initSmoothScroll() {
 function initReveals() {
   const groups = new Map<Element, Element[]>();
 
+  // 'section, footer': Footer.astro's root is a <footer>, not a <section>,
+  // so without this it silently never groups (closest('section') returns
+  // null for anything inside it) and never gets a reveal animation at
+  // all. That gap is why the sidebar-to-footer morph read as "the sidebar
+  // just vanishes": Footer's own content had no entrance to arrive WITH,
+  // it was just sitting there, statically rendered, the whole time.
   document.querySelectorAll<HTMLElement>('[data-reveal]').forEach((el) => {
-    const section = el.closest('section');
+    const section = el.closest('section, footer');
     if (!section) return;
     const list = groups.get(section) ?? [];
     list.push(el);
@@ -566,12 +572,13 @@ function heroTotalScroll() {
   return window.innerHeight * (1 + HERO_EXTRA_VH);
 }
 
-// The sidebar-to-footer fade (initFooterMorph) spans this many
-// viewport-heights of scroll too, matching heroTotalScroll()'s total
-// (1 + HERO_EXTRA_VH) so the closing transition feels as graceful and
-// unrushed as the opening one, instead of the sudden last-few-hundred-px
-// fade an earlier version used.
-const FOOTER_FADE_VH = 1 + HERO_EXTRA_VH;
+// The sidebar-to-footer fade (initFooterMorph) window, in viewport-heights
+// of scroll. An earlier version matched this to heroTotalScroll()'s full
+// ~2.5vh, reasoning it should feel as unrushed as the Hero opening
+// transition, but at that length a normal scroll flick covers the whole
+// window in one gesture, which reads as an instant cut rather than a
+// visible fade, the opposite of the intent. Shorter and snappier instead.
+const FOOTER_FADE_VH = 0.6;
 
 // The Hero photo is fixed to the viewport (not the page), so scrolling
 // never moves it, it only blurs and fades away in place as Hero scrolls
@@ -652,7 +659,10 @@ function initHeroFlip() {
     ctx = gsap.context(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const gap = 32; // 2rem: same side gap the old wordmark used.
+    // Fluid, not a fixed 32px: scales down toward tablet-width desktops
+    // (this whole build() only runs at 768px+, so 20px is the floor right
+    // at that breakpoint) and caps at 32px once there's room to spare.
+    const gap = Math.max(20, Math.min(32, vw * 0.02));
     const photo = document.querySelector<HTMLElement>('[data-hero-photo]');
     // GSAP expects its own vars object per tween, reusing one scrollTrigger
     // object literal across many gsap.fromTo() calls causes only the first
@@ -731,6 +741,20 @@ function initHeroFlip() {
         if (getComputedStyle(el).display === 'inline') {
           el.style.display = 'inline-block';
         }
+        // `width: auto` is REQUIRED here, not optional, for any element
+        // that carries `w-full` (100% of its resting container) at rest:
+        // without it, `last` below measures the full container box (e.g.
+        // the whole sidebar column width), and scaling THAT box by a
+        // uniform factor scales every element to the SAME absolute pixel
+        // width regardless of its own text length, completely decoupled
+        // from the actual content. Confirmed directly: every nav link
+        // rendered at an identical 244px width at Hero time regardless of
+        // whether the label was "Home" or "Certification", overlapping
+        // its neighbors since the grid's own column-width math (elsewhere
+        // in this file) assumed rendered width scaled with the link's own
+        // natural text width, not a shared container width. Auto-sizing
+        // the box to its content here is what makes that assumption true.
+        el.style.width = 'auto';
         const last = el.getBoundingClientRect();
         if (!last.width || !last.height) return;
         el.style.transformOrigin = 'top left';
@@ -800,6 +824,23 @@ function initHeroFlip() {
         return rect;
       });
       const gridGap = 16;
+      const cols = 3;
+      // Column width has to be known BEFORE the nav font-size is picked,
+      // not after: an earlier version computed a uniform navScale purely
+      // from a target font-size range (16-24px) and only worked out each
+      // column's width afterward for POSITIONING, never checking whether
+      // the scaled-up text actually fit inside the column it was being
+      // positioned into. It didn't: "Certification" and "Achievement"
+      // rendered wider than their column at that font size, spilling into
+      // the next column over, confirmed by measuring adjacent link rects
+      // directly and finding them overlapping by ~150-200px. Column width
+      // is computed here first, from the same photo-relative area the
+      // grid actually renders into, so the size pass below can cap
+      // navScale against it and guarantee every link fits its own cell.
+      const photoRectForGrid = photo ? photo.getBoundingClientRect() : null;
+      const gridAreaLeft = photoRectForGrid ? photoRectForGrid.right + gap : gap;
+      const gridAreaRight = vw - gap;
+      const colWidth = Math.max(0, (gridAreaRight - gridAreaLeft - gridGap * (cols - 1)) / cols);
       // Nav links are SCALED UP at Hero time by a single uniform factor
       // derived from font size, not via scrubFlip's width-ratio path like
       // the name: because of the `w-full` above, a link's resting box is
@@ -808,7 +849,13 @@ function initHeroFlip() {
       // out below 1, scaling the links DOWN into unreadable specks (this
       // shipped once). Uniform scale + translate only, via scrubMove().
       const linkRestSize = linkEls.length ? parseFloat(getComputedStyle(linkEls[0]).fontSize) : 14;
-      const heroNavSize = Math.max(16, Math.min(24, vw / 60));
+      const maxNaturalLinkWidth = linkNaturalRects.reduce((max, r) => Math.max(max, r.width), 0);
+      const desiredNavSize = Math.max(16, Math.min(24, vw / 60));
+      // 0.92 leaves a little breathing room inside the cell rather than
+      // touching the next column edge-to-edge.
+      const maxFitNavSize =
+        maxNaturalLinkWidth > 0 ? (colWidth * 0.92) / (maxNaturalLinkWidth / linkRestSize) : desiredNavSize;
+      const heroNavSize = Math.max(11, Math.min(desiredNavSize, maxFitNavSize));
       const navScale = heroNavSize / linkRestSize;
       const navRowHeight = linkNaturalRects.reduce((max, r) => Math.max(max, r.height), 0) * navScale;
 
@@ -870,12 +917,7 @@ function initHeroFlip() {
       // dedicated vertical band at all, so neither the name nor the photo
       // has to shrink to make room for it.
       if (linkEls.length && photo) {
-        const photoRect = photo.getBoundingClientRect();
-        const cols = 3;
         const rows = Math.ceil(linkEls.length / cols);
-        const areaLeft = photoRect.right + gap;
-        const areaRight = vw - gap;
-        const colWidth = Math.max(0, (areaRight - areaLeft - gridGap * (cols - 1)) / cols);
         const gridHeight = navRowHeight * rows + gridGap * (rows - 1);
         const gridTop = vh - gap - gridHeight;
         linkEls.forEach((el, i) => {
@@ -884,7 +926,7 @@ function initHeroFlip() {
           el.style.position = 'relative';
           el.style.zIndex = '1';
           scrubMove(el, {
-            left: areaLeft + col * (colWidth + gridGap),
+            left: gridAreaLeft + col * (colWidth + gridGap),
             top: gridTop + row * (navRowHeight + gridGap),
             scale: navScale,
           });
