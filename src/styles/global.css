@@ -243,21 +243,25 @@ body {
    deliberate trip-wire, see Section sizing in CLAUDE.md), so a list long
    enough to exceed that height would silently clip past the fold instead
    of ever being reachable, with no indication anything was cut off.
-   Capped and independently scrollable so an arbitrarily long list (the
-   dataset doubling, tripling, whatever) stays fully reachable without
-   breaking the "one section, one screen" rhythm every other section
-   keeps. 55vh leaves comfortable headroom above today's short (4-item)
-   lists even on a short laptop viewport (~700px, see the same note on
-   .section-heading), so nothing about the current look changes; it only
-   kicks in once a list actually grows past it. Unscoped by viewport width
-   on purpose: .section's 100svh/overflow:hidden applies at every width
-   (mobile's [data-expand-grid] carve-out below doesn't cover these two,
-   they aren't expand-grids), so mobile needs the same protection. */
-.achievement-list,
-.cert-list {
-  max-height: 55vh;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+   An earlier version capped the list itself at max-height: 55vh with its
+   own overflow-y: auto (an internal scrollbar), reversed per explicit
+   "don't make a vertical scrollbar within a page" instruction: the page
+   should just get longer instead, with the whole site's normal scroll
+   (not a nested scroll container) reaching every item. The section
+   itself opts out of the fixed-100svh contract instead (below), the same
+   way mobile's [data-expand-grid] sections already do; unlike that
+   mobile-only carve-out, this applies at every width, since the
+   underlying problem (an arbitrarily long real list) isn't width-
+   specific. initActiveSection/initScrollLock both key off the section's
+   OWN measured height via ScrollTrigger, which re-measures on refresh, so
+   a taller section here doesn't desync active-section tracking or the
+   scroll-lock snap, they just treat the extra height as more of the same
+   section rather than needing any code change of their own. */
+.section:has(.achievement-list),
+.section:has(.cert-list) {
+  height: auto;
+  min-height: 100svh;
+  overflow: visible;
 }
 
 /* Expand-to-modal pattern shared by Career and Projects (Certification and

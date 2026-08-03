@@ -12,7 +12,7 @@ import { projects } from '../data/projects';
     </h2>
 
     <div
-      class="reveal mt-6 w-full"
+      class="reveal mt-4 w-full"
       data-reveal
       data-expand-grid
       data-hscroll
@@ -45,7 +45,7 @@ import { projects } from '../data/projects';
         {
           projects.map((project) => (
             <article
-              class="expand-card group w-[300px] flex-shrink-0 md:w-[380px]"
+              class="expand-card group w-[300px] flex-shrink-0"
               data-expand-card
               data-slug={project.slug}
               tabindex="0"
@@ -71,7 +71,7 @@ import { projects } from '../data/projects';
                     class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
-                <div class="mt-3 flex items-baseline gap-3">
+                <div class="mt-2 flex items-baseline gap-3">
                   <h3 class="card-title min-w-0 flex-1 font-display font-semibold text-white transition-colors group-hover:text-accent">
                     {project.name}
                   </h3>
