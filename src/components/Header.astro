@@ -2,14 +2,11 @@
 import { socials } from '../data/socials';
 
 const links = [
-  { id: 'home', label: 'Home' },
-  { id: 'about', label: 'About Me' },
-  { id: 'academic', label: 'Academic' },
-  { id: 'certification', label: 'Certification' },
-  { id: 'project', label: 'Project' },
-  { id: 'technology', label: 'Technology' },
   { id: 'career', label: 'Career' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'project', label: 'Project' },
   { id: 'achievement', label: 'Achievement' },
+  { id: 'certification', label: 'Certification' },
   { id: 'contact', label: 'Contact' },
 ];
 ---
@@ -50,7 +47,7 @@ const links = [
       ))
     }
   </nav>
-  <div class="flex gap-5">
+  <div class="mobile-menu-socials flex gap-5">
     {
       socials.map((social) => (
         <a
@@ -67,6 +64,16 @@ const links = [
       ))
     }
   </div>
+
+  <a
+    href="/cv/Favian-Izza-CV.pdf"
+    target="_blank"
+    rel="noreferrer"
+    download
+    class="mobile-menu-cv btn-interactive inline-flex items-center justify-center rounded-lg bg-primary-strong px-6 py-3 text-sm font-semibold text-white"
+  >
+    Download CV
+  </a>
 </div>
 
 <style>
@@ -99,6 +106,26 @@ const links = [
   .mobile-menu.is-open {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  /* Swapped based on which section is currently active (tracked globally
+     in initActiveSection(), motion.ts, via document.body's
+     data-active-section attribute, not a separate observer here): on the
+     Home section the menu shows the social links, everywhere else it
+     shows a Download CV button instead. Defaults (this compound selector
+     not matching at all) to showing socials, which is correct both for
+     data-active-section="home" AND for before the tracker's first update
+     ever fires (e.g. very first paint, attribute doesn't exist yet). */
+  .mobile-menu-cv {
+    display: none;
+  }
+
+  :global(body[data-active-section]:not([data-active-section='home'])) .mobile-menu-socials {
+    display: none;
+  }
+
+  :global(body[data-active-section]:not([data-active-section='home'])) .mobile-menu-cv {
+    display: inline-flex;
   }
 </style>
 

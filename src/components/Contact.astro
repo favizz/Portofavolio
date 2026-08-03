@@ -9,35 +9,22 @@ const inputClass =
       Contact
     </p>
     <h2 class="reveal section-heading mt-3" data-reveal>
-      Have a project in mind or just want to say hello? Send me a message.
+      Have a project in mind? Send me a message.
     </h2>
 
     <form id="contact-form" class="reveal mt-10 w-full" data-reveal>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <label class="flex flex-col gap-2 text-left text-sm text-text-muted">
-          Name
-          <input
-            type="text"
-            name="name"
-            required
-            minlength="2"
-            maxlength="80"
-            placeholder="Your name"
-            class={inputClass}
-          />
-        </label>
-        <label class="flex flex-col gap-2 text-left text-sm text-text-muted">
-          Email
-          <input
-            type="email"
-            name="email"
-            required
-            maxlength="254"
-            placeholder="you@example.com"
-            class={inputClass}
-          />
-        </label>
-      </div>
+      <label class="flex flex-col gap-2 text-left text-sm text-text-muted">
+        Name
+        <input
+          type="text"
+          name="name"
+          required
+          minlength="2"
+          maxlength="80"
+          placeholder="Your name"
+          class={inputClass}
+        />
+      </label>
       <label class="mt-4 flex flex-col gap-2 text-left text-sm text-text-muted">
         Subject
         <input
@@ -83,11 +70,10 @@ const inputClass =
     event.preventDefault();
     const data = new FormData(form);
     const name = String(data.get('name') ?? '');
-    const email = String(data.get('email') ?? '');
     const subject = String(data.get('subject') ?? '');
     const message = String(data.get('message') ?? '');
 
-    const body = `Hi Favian,\n\n${message}\n\nFrom: ${name} (${email})`;
+    const body = `Hi Favian,\n\n${message}\n\nFrom: ${name}`;
     const url =
       'https://mail.google.com/mail/?view=cm&fs=1&to=izza.diasputra10@gmail.com' +
       `&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

@@ -11,56 +11,27 @@ import { certifications } from '../data/certifications';
       Credentials that back the practice with recognized standards.
     </h2>
 
-    <div
-      class="cert-grid reveal mt-6 w-full"
-      data-reveal
-      data-expand-grid
-      data-hscroll
-      data-expand-section="certification"
-    >
-      <div data-expand-default>
-        {
-          certifications.map((cert, index) => (
-            <article class="expand-card w-[300px] flex-shrink-0 md:w-[380px]">
-              <div class="card-face">
-                <div class="hover-border relative aspect-[4/3] w-full overflow-hidden rounded-xl">
-                  <img
-                    src={cert.image}
-                    alt={`${cert.name} emblem`}
-                    loading="lazy"
-                    decoding="async"
-                    class="h-full w-full object-cover"
-                  />
-                </div>
-                <div class="mt-3 flex items-baseline gap-3">
-                  <span class="font-display text-base font-semibold text-accent/70">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <h3 class="min-w-0 flex-1 font-display text-3xl font-semibold text-white">
-                    {cert.short}
-                  </h3>
-                  <span class="text-sm text-text-muted">{cert.date}</span>
-                </div>
-                <p class="mt-1 pl-8 text-base text-text-muted">{cert.issuer}</p>
-                <a
-                  href={cert.documentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-cta mt-3 pl-8 text-sm"
-                >
-                  View document <span aria-hidden="true">&#8594;</span>
-                </a>
-              </div>
-            </article>
-          ))
-        }
-      </div>
+    <div class="cert-list reveal mt-6 flex w-full flex-col" data-reveal>
+      {
+        certifications.map((cert) => (
+          <div class="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1 border-b border-primary-light/10 py-4">
+            <h3 class="card-title col-start-1 row-start-1 font-display font-semibold text-white">
+              {cert.short}
+            </h3>
+            <span class="col-start-2 row-start-1 text-sm text-text-muted">{cert.date}</span>
+            <p class="col-start-1 row-start-2 text-base text-text-muted">{cert.issuer}</p>
+            <a
+              href={cert.documentUrl}
+              target="_blank"
+              rel="noreferrer"
+              class="text-cta col-start-2 row-start-2 justify-self-end text-sm"
+            >
+              <span class="hidden md:inline">View here</span>
+              <span class="md:hidden" aria-hidden="true">&#8594;</span>
+            </a>
+          </div>
+        ))
+      }
     </div>
   </div>
 </section>
-
-<style>
-  .cert-grid .expand-card {
-    cursor: default;
-  }
-</style>

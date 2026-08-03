@@ -55,8 +55,8 @@ function initSmoothScroll() {
   // max scroll (by exactly the combined height of every pin-spacer) unless
   // something tells it to re-measure. ScrollTrigger's own `refresh` event
   // is the right hook, it already fires after pin creation and every later
-  // deferredRefresh()/resettle() call (font load, expand/collapse, window
-  // resize), so this keeps Lenis in sync for the lifetime of the page
+  // resettle() call (font load, window resize), so this keeps Lenis in
+  // sync for the lifetime of the page
   // instead of a one-off fix. Without this, scrollTo() on a target beyond
   // the stale limit silently clamps short, this was the literal cause of
   // clicking a nav link deep in the page leaving the previous section
@@ -165,51 +165,36 @@ function initActiveSection() {
     dots.forEach((dot) => {
       dot.setAttribute('data-active', String(dot.dataset.section === id));
     });
+    // Header.astro's mobile menu swaps its bottom row (socials <-> Download
+    // CV button) based on this, rather than duplicating section-tracking
+    // logic of its own.
+    document.body.setAttribute('data-active-section', id);
   }
 }
 
-function deferredRefresh() {
-  // Wait for the FLIP transition (0.6s) to fully settle before letting
-  // ScrollTrigger re-measure, otherwise the refresh fights in-flight
-  // Lenis tweens and mid-transform layout.
-  setTimeout(() => ScrollTrigger.refresh(), 700);
-}
-
-function flipOne(el: HTMLElement, mutate: () => void) {
-  const first = el.getBoundingClientRect();
-  mutate();
-  const last = el.getBoundingClientRect();
-  if (!last.width || !last.height) return;
-
-  const dx = first.left - last.left;
-  const dy = first.top - last.top;
-  const sx = first.width / last.width;
-  const sy = first.height / last.height;
-
-  gsap.fromTo(
-    el,
-    { x: dx, y: dy, scaleX: sx, scaleY: sy, opacity: 0.4 },
-    {
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1,
-      opacity: 1,
-      duration: 0.6,
-      ease: 'power3.inOut',
-      clearProps: 'transform,opacity',
-    },
-  );
-}
 
 function initExpandableGrids() {
+  // Shared modal backdrop, created once and reused by every expand-capable
+  // grid on the page: only one card can ever be open at a time, so there's
+  // no need for a separate backdrop per grid. See the big comment further
+  // down (at the `expand`/`closeModal` functions) for why this replaced
+  // the old FLIP-into-a-stage-inside-the-grid approach entirely.
+  let modalBackdrop = document.querySelector<HTMLElement>('[data-modal-backdrop]');
+  if (!modalBackdrop) {
+    modalBackdrop = document.createElement('div');
+    modalBackdrop.setAttribute('data-modal-backdrop', '');
+    modalBackdrop.className = 'card-modal-backdrop';
+    document.body.appendChild(modalBackdrop);
+  }
+
   document.querySelectorAll<HTMLElement>('[data-expand-grid]').forEach((grid) => {
     const sectionId = grid.dataset.expandSection ?? '';
     const carousel = grid.querySelector<HTMLElement>('[data-expand-carousel]');
-    const stage = grid.querySelector<HTMLElement>('[data-expand-stage]');
     const defaultSlot = grid.querySelector<HTMLElement>('[data-expand-default]');
     const cards = Array.from(grid.querySelectorAll<HTMLElement>('[data-expand-card]'));
     const labels = Array.from(grid.querySelectorAll<HTMLElement>('[data-carousel-item]'));
+    const prevBtn = grid.querySelector<HTMLButtonElement>('[data-carousel-prev]');
+    const nextBtn = grid.querySelector<HTMLButtonElement>('[data-carousel-next]');
     if (!defaultSlot) return;
 
     // Sections with a horizontal card carousel (data-hscroll) pin in place
@@ -269,7 +254,10 @@ function initExpandableGrids() {
       // the fold) shift section heights, which silently stales the pin
       // distance measured at init.
       const resettle = () => {
-        if (grid.hasAttribute('data-expanded')) return;
+        // No `data-expanded` guard here: the modal (see below) no longer
+        // touches this pin at all, so a resettle firing while a card
+        // happens to be open is harmless, nothing about the collapsed
+        // row's own layout changed underneath it.
         destroyHscrollPin();
         createHscrollPin();
       };
@@ -288,10 +276,46 @@ function initExpandableGrids() {
       });
     }
 
-    // Some hscroll grids (Certification) are pin-only: a scroll-driven row
-    // of cards with no click-to-expand stage. Nothing below this point
-    // applies without a carousel/stage to expand into.
-    if (!carousel || !stage) return;
+    // Some hscroll grids (Certification, Achievement) are pin-only: a
+    // scroll-driven row of cards with no click-to-expand modal. Nothing
+    // below this point applies without a carousel to expand into.
+    if (!carousel) return;
+
+    // Ambient "this row is tappable" cue for mobile's collapsed list rows
+    // (title + date only, no thumbnail image to otherwise hint at
+    // interactivity), replacing a static icon that shipped once and was
+    // removed for visually colliding with other row content. A slow,
+    // continuous, staggered scale pulse instead, GSAP-driven rather than
+    // a CSS @keyframes animation (the marquees learned this the hard way:
+    // prefers-reduced-motion silently kills CSS animations and is on far
+    // more often than it looks, GSAP tweens ignore it). yoyo:true with no
+    // gap-inducing delay between cycles keeps the motion continuous, no
+    // pause between "press down" and "release." Paused while a card is
+    // actually expanded (an ambient hint elsewhere shouldn't compete with
+    // real expanded content) and torn down/rebuilt on resize so crossing
+    // the 768px boundary turns it on or off.
+    let pulseTween: gsap.core.Tween | null = null;
+    function setupPulse() {
+      pulseTween?.kill();
+      pulseTween = null;
+      gsap.set(cards, { clearProps: 'scale' });
+      if (window.innerWidth >= 768) return;
+      pulseTween = gsap.to(cards, {
+        scale: 0.97,
+        duration: 1.4,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true,
+        stagger: { each: 0.15, repeat: -1, yoyoEase: true },
+      });
+      if (grid.hasAttribute('data-expanded')) pulseTween.pause();
+    }
+    setupPulse();
+    let pulseResizeTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener('resize', () => {
+      clearTimeout(pulseResizeTimer);
+      pulseResizeTimer = setTimeout(setupPulse, 200);
+    });
 
     function syncLabels(slug: string) {
       const activeIndex = labels.findIndex((label) => label.dataset.slug === slug);
@@ -303,27 +327,83 @@ function initExpandableGrids() {
           label.setAttribute('data-dist', String(Math.min(3, Math.abs(index - activeIndex))));
         }
       });
+      // Mobile's prev/next chevrons (desktop keeps the label list instead,
+      // see global.css) go low-opacity and unclickable at either end of the
+      // list, same disabled-at-the-boundary idea as the hscroll pin's own
+      // dwell, just for manual stepping instead of a scroll gesture.
+      prevBtn?.toggleAttribute('disabled', activeIndex <= 0);
+      nextBtn?.toggleAttribute('disabled', activeIndex === -1 || activeIndex >= labels.length - 1);
     }
 
-    // Re-appending every card in source order restores the original grid
-    // layout regardless of which card was pulled out into the stage.
+    // The expanded view is a fixed-position MODAL, not a card FLIPped into
+    // a stage that lives inside the grid's own document flow. This
+    // replaced the earlier stage/FLIP/pin-destroy-and-rebuild system
+    // outright after three rounds of chasing the same underlying bug
+    // (cropped content, "teleporting" past the card, a recurring glitch
+    // on close): all of those symptoms traced back to some combination of
+    // the hscroll pin being destroyed and rebuilt around expand/collapse,
+    // and the expanded card's height being bound by the section's own
+    // scroll-driven, pin-spacer-dependent geometry. A modal sidesteps the
+    // entire problem class by construction: `position: fixed` takes the
+    // card out of the pin/section's box model entirely, so nothing about
+    // opening or closing it ever needs to touch the hscroll pin (it just
+    // keeps running underneath, untouched, the whole time), and a fixed
+    // `max-height` with its own internal scroll (`overflow-y: auto`)
+    // means content can never be cropped, worst case it scrolls inside
+    // the modal instead of the page. The tradeoff: no more FLIP-from-the-
+    // clicked-card's-exact-position animation, just a simple scale/fade
+    // (the modal's own fixed position has no meaningful relationship to
+    // where the card was in the row, so FLIP's "first rect" wouldn't mean
+    // anything here anyway).
+    //
+    // One real gotcha this ran into: `position: fixed` only positions
+    // relative to the VIEWPORT if every ancestor is free of `transform`
+    // (also `filter`/`perspective`/`will-change: transform`) — any
+    // ancestor with one of those establishes its own containing block,
+    // and a "fixed" descendant becomes fixed relative to THAT ancestor
+    // instead, behaving like `position: absolute` in disguise. The
+    // hscroll pin's own scrub tween continuously applies exactly that
+    // (`transform: translateX(...)` on `defaultSlot`, deliberately never
+    // paused for the modal, see above), and the card lives inside
+    // `defaultSlot`. The fix is NOT to touch the pin (that reintroduces
+    // the exact coupling this rewrite exists to avoid): instead, the
+    // opening card is reparented OUT of `defaultSlot` (to `document.body`)
+    // for the duration it's open, a plain DOM move with no scroll/pin
+    // timing involved at all, and `restoreOrder()` puts every card back
+    // in its correct sorted position on close.
     function restoreOrder() {
-      cards.forEach((card) => defaultSlot!.appendChild(card));
+      cards.forEach((c) => defaultSlot!.appendChild(c));
     }
 
-    function collapse() {
+    let openCard: HTMLElement | null = null;
+
+    function closeModal() {
+      if (!openCard) return;
+      const card = openCard;
+      openCard = null;
+      // State changes (the attributes that actually control what's
+      // fixed-positioned, visible, and clickable) happen SYNCHRONOUSLY,
+      // not gated behind a GSAP onComplete callback: the entire point of
+      // this modal rewrite was to stop depending on animation timing for
+      // correctness (that dependency is what caused three straight
+      // rounds of the old stage/pin system's bugs). The fade-out below is
+      // purely a cosmetic layer on top of an already-correct state, if
+      // it's ever interrupted or fails to fire for any reason, nothing
+      // gets stuck.
+      card.removeAttribute('data-modal-open');
+      modalBackdrop!.removeAttribute('data-open');
       restoreOrder();
+      gsap.set(card, { clearProps: 'opacity,scale' });
+      gsap.fromTo(modalBackdrop, { opacity: 1 }, { opacity: 0, duration: 0.2 });
+      window.lenisInstance?.start();
+      document.removeEventListener('keydown', onKeydown);
       grid.removeAttribute('data-expanded');
       syncLabels('');
-      gsap.fromTo(
-        cards,
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', stagger: 0.05, clearProps: 'transform,opacity' },
-      );
-      deferredRefresh();
-      // Wait for layout to settle back into the collapsed row before
-      // re-measuring the pin distance.
-      requestAnimationFrame(() => requestAnimationFrame(createHscrollPin));
+      pulseTween?.play();
+    }
+
+    function onKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeModal();
     }
 
     function expand(slug: string) {
@@ -332,60 +412,46 @@ function initExpandableGrids() {
       if (!card) return;
 
       const wasExpanded = grid.hasAttribute('data-expanded');
-      // Killing the hscroll pin below collapses its pin-spacer (real
-      // document height reserved for the horizontal scroll distance) back
-      // down to the section's normal single-viewport height. Since the
-      // user is clicking a card WHILE the section is pinned, the viewport
-      // is currently positioned somewhere inside that spacer's extra
-      // height, above where the section will resettle. scrollY itself
-      // doesn't change when the spacer collapses, so the page content
-      // above/at the viewport just got shorter and the viewport ends up
-      // looking at whatever shifted up into the same pixel offset, which
-      // reads as being tossed into the NEXT section. Capture the pinned
-      // section's on-screen position before the kill and re-apply it
-      // immediately after, canceling the shift regardless of how far into
-      // the pin the user was.
-      const anchorBefore = pinSection?.getBoundingClientRect().top ?? null;
-      destroyHscrollPin();
-      if (anchorBefore !== null && pinSection) {
-        const delta = pinSection.getBoundingClientRect().top - anchorBefore;
-        if (delta !== 0) {
-          window.lenisInstance?.scrollTo(window.scrollY + delta, { immediate: true });
-        }
+      pulseTween?.pause();
+
+      if (openCard && openCard !== card) {
+        openCard.removeAttribute('data-modal-open');
       }
+      // Reset every card back into defaultSlot first (a no-op on the
+      // very first open, since nothing's been moved out yet; on a
+      // cycle between cards, this is what puts the PREVIOUSLY open one
+      // back instead of leaving it orphaned in document.body), then
+      // move OUT only the one being opened now. See the big comment
+      // above openCard's declaration for why it needs to leave
+      // defaultSlot at all (the hscroll pin's own transform on
+      // defaultSlot would otherwise hijack position: fixed's containing
+      // block). document.body is a safe destination, nothing there has
+      // its own transform.
+      restoreOrder();
+      document.body.appendChild(card);
+      card.setAttribute('data-modal-open', 'true');
+      openCard = card;
+      grid.setAttribute('data-expanded', slug);
 
       if (wasExpanded) {
-        // Cycling between already-expanded cards (vertical-carousel wheel
-        // browsing) should read as a continuous slide between cards, not a
-        // repeated "pop" from the grid. FLIP can't do that here anyway:
-        // the outgoing card is display:none while hidden (only the staged
-        // card is shown), so its "first" rect would be zero-size and the
-        // scale math would degenerate into an instant snap. A plain
-        // cross-fade/slide reads as scroll-like instead.
-        restoreOrder();
-        stage!.appendChild(card);
-        grid.setAttribute('data-expanded', slug);
+        // Cycling between already-expanded cards (label/chevron browsing):
+        // the new card just appears, no separate entrance needed since
+        // the backdrop is already up and the modal box is already in
+        // place, only WHICH card fills it changes.
+        gsap.fromTo(card, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power2.out' });
+      } else {
+        modalBackdrop!.setAttribute('data-open', 'true');
         gsap.fromTo(
           card,
-          { opacity: 0, y: 30 },
-          { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', clearProps: 'transform,opacity' },
+          { opacity: 0, scale: 0.96 },
+          { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' },
         );
-      } else {
-        flipOne(card, () => {
-          restoreOrder();
-          stage!.appendChild(card);
-          grid.setAttribute('data-expanded', slug);
-        });
+        gsap.fromTo(modalBackdrop, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+        window.lenisInstance?.stop();
+        document.addEventListener('keydown', onKeydown);
       }
 
-      gsap.fromTo(
-        carousel,
-        { opacity: 0, x: -12 },
-        { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform,opacity' },
-      );
-
       syncLabels(slug);
-      deferredRefresh();
     }
 
     labels.forEach((label) => {
@@ -393,6 +459,23 @@ function initExpandableGrids() {
         event.stopPropagation();
         expand(label.dataset.slug ?? '');
       });
+    });
+
+    // Mobile's chevron equivalent of clicking a label: step to the
+    // adjacent slug by index, a no-op at either boundary (the disabled
+    // attribute already blocks the click, this is just belt-and-suspenders
+    // against a stray Enter/Space on a focused-but-disabled button).
+    prevBtn?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const activeIndex = labels.findIndex((label) => label.dataset.slug === grid.getAttribute('data-expanded'));
+      if (activeIndex > 0) expand(labels[activeIndex - 1].dataset.slug ?? '');
+    });
+    nextBtn?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const activeIndex = labels.findIndex((label) => label.dataset.slug === grid.getAttribute('data-expanded'));
+      if (activeIndex !== -1 && activeIndex < labels.length - 1) {
+        expand(labels[activeIndex + 1].dataset.slug ?? '');
+      }
     });
 
     // There is deliberately NO scroll-driven card cycling inside an
@@ -404,9 +487,9 @@ function initExpandableGrids() {
     // previous one and forward again while ALSO releasing the page to
     // scroll onward, so the user lost control of both the carousel and the
     // page at the same time. Selection now changes only by clicking a
-    // carousel label (or a card, or a cross-link), and page scroll is never
-    // hijacked while a card is expanded. Do not reintroduce a wheel/scroll
-    // handler here.
+    // carousel label, a mobile chevron, a card, or a cross-link, and page
+    // scroll is never hijacked while a card is expanded. Do not
+    // reintroduce a wheel/scroll handler here.
     cards.forEach((card) => {
       card.addEventListener('click', (event) => {
         if ((event.target as HTMLElement).closest('[data-expand-ignore]')) return;
@@ -423,8 +506,22 @@ function initExpandableGrids() {
     grid.querySelectorAll<HTMLElement>('[data-expand-back]').forEach((btn) => {
       btn.addEventListener('click', (event) => {
         event.stopPropagation();
-        collapse();
+        // A clicked button keeps keyboard focus afterward, and with the
+        // old stage/pin system that could trigger the browser's native
+        // "scroll the focused element into view" behavior mid-transition,
+        // reading as a stray horizontal scroll glitch. The modal no
+        // longer touches scroll position or the hscroll pin at all, so
+        // that specific failure mode is gone, but blurring here is still
+        // cheap, harmless insurance against any future focus-scroll quirk.
+        (event.currentTarget as HTMLElement).blur();
+        closeModal();
       });
+    });
+
+    // Clicking the backdrop (outside the modal card itself) closes it too,
+    // standard modal convention.
+    modalBackdrop.addEventListener('click', () => {
+      if (grid.getAttribute('data-expanded')) closeModal();
     });
 
     document.addEventListener('portfolio:expand', (event) => {
@@ -578,7 +675,14 @@ function heroTotalScroll() {
 // transition, but at that length a normal scroll flick covers the whole
 // window in one gesture, which reads as an instant cut rather than a
 // visible fade, the opposite of the intent. Shorter and snappier instead.
-const FOOTER_FADE_VH = 0.6;
+// Reduced again (0.6 -> 0.3 -> 0.18) per explicit "has to be faster"
+// feedback, most recently because the fade was slow enough that a visitor
+// could click one nav link, then click a SECOND different one before the
+// sidebar finished fading away and lost interactivity (see the
+// pointer-events cutoff in apply() below, the other half of that fix:
+// shortening the tween alone doesn't stop clicks mid-fade, opacity has no
+// effect on hit-testing).
+const FOOTER_FADE_VH = 0.18;
 
 // The Hero photo is fixed to the viewport (not the page), so scrolling
 // never moves it, it only blurs and fades away in place as Hero scrolls
@@ -655,6 +759,22 @@ function initHeroFlip() {
       pin: true,
       pinSpacing: true,
     });
+    // GSAP auto-wraps a pinned element in a `.pin-spacer` div (its new
+    // immediate parent) to reserve the pin's scroll distance in the
+    // document. That wrapper has no styling of its own, but it's a real,
+    // positioned, pointer-events: auto box occupying Hero's full screen
+    // area, and it sits ABOVE the sidebar in stacking order the same way
+    // hero-section itself did before it got `pointer-events: none` (see
+    // Hero.astro). Fixing hero-section alone wasn't enough: clicks that
+    // fell through IT then landed on ITS OWN PARENT (this spacer) next,
+    // confirmed directly with elementFromPoint() returning a `.pin-spacer`
+    // div at a nav link's coordinates even after hero-section itself
+    // correctly stopped intercepting. The spacer has no content of its
+    // own worth clicking (Hero's real content is hero-section, already
+    // handled), so it's safe to make it pass-through too.
+    if (heroSection!.parentElement?.classList.contains('pin-spacer')) {
+      heroSection!.parentElement.style.pointerEvents = 'none';
+    }
 
     ctx = gsap.context(() => {
     const vw = window.innerWidth;
@@ -664,6 +784,29 @@ function initHeroFlip() {
     // at that breakpoint) and caps at 32px once there's room to spare.
     const gap = Math.max(20, Math.min(32, vw * 0.02));
     const photo = document.querySelector<HTMLElement>('[data-hero-photo]');
+    // Nav (right column), stats (right column, stacked below nav), and desc
+    // (left column) all live in this reserved band at the bottom of the
+    // viewport. Sized as a fraction of vh, not a fixed pixel band, so it
+    // actually grows to use real extra space on tall viewports instead of
+    // leaving it empty, with a floor so a 3-row nav grid stays legible on
+    // short ones. FAVIAN's own hero height is capped against bandTop (see
+    // heightFitSize below), so the two can never overlap regardless of
+    // viewport size, confirmed as a real, measured collision (not just a
+    // z-index illusion) at 1707x748 before this fix: FAVIAN's box ran to
+    // y=616 while nav links, desc, and stats all started above that, in the
+    // 570-599 range.
+    const bandHeight = Math.max(170, vh * 0.32);
+    const bandBottom = vh - gap;
+    const bandTop = bandBottom - bandHeight;
+    // Nav and stats share this column beside the photo's right edge,
+    // stacked (nav above stats) instead of both independently centering
+    // around the same y and landing on top of each other, which is what
+    // the previous fixed flankCenter/vh-anchored math actually did.
+    const stackGap = 18;
+    const navZoneHeight = (bandHeight - stackGap) * 0.62;
+    const statsZoneHeight = bandHeight - stackGap - navZoneHeight;
+    const navZoneTop = bandTop;
+    const statsZoneTop = navZoneTop + navZoneHeight + stackGap;
     // GSAP expects its own vars object per tween, reusing one scrollTrigger
     // object literal across many gsap.fromTo() calls causes only the first
     // to actually bind, this factory hands each tween a fresh copy. Uses
@@ -824,23 +967,9 @@ function initHeroFlip() {
         return rect;
       });
       const gridGap = 16;
-      const cols = 3;
-      // Column width has to be known BEFORE the nav font-size is picked,
-      // not after: an earlier version computed a uniform navScale purely
-      // from a target font-size range (16-24px) and only worked out each
-      // column's width afterward for POSITIONING, never checking whether
-      // the scaled-up text actually fit inside the column it was being
-      // positioned into. It didn't: "Certification" and "Achievement"
-      // rendered wider than their column at that font size, spilling into
-      // the next column over, confirmed by measuring adjacent link rects
-      // directly and finding them overlapping by ~150-200px. Column width
-      // is computed here first, from the same photo-relative area the
-      // grid actually renders into, so the size pass below can cap
-      // navScale against it and guarantee every link fits its own cell.
       const photoRectForGrid = photo ? photo.getBoundingClientRect() : null;
       const gridAreaLeft = photoRectForGrid ? photoRectForGrid.right + gap : gap;
       const gridAreaRight = vw - gap;
-      const colWidth = Math.max(0, (gridAreaRight - gridAreaLeft - gridGap * (cols - 1)) / cols);
       // Nav links are SCALED UP at Hero time by a single uniform factor
       // derived from font size, not via scrubFlip's width-ratio path like
       // the name: because of the `w-full` above, a link's resting box is
@@ -850,14 +979,51 @@ function initHeroFlip() {
       // shipped once). Uniform scale + translate only, via scrubMove().
       const linkRestSize = linkEls.length ? parseFloat(getComputedStyle(linkEls[0]).fontSize) : 14;
       const maxNaturalLinkWidth = linkNaturalRects.reduce((max, r) => Math.max(max, r.width), 0);
-      const desiredNavSize = Math.max(16, Math.min(24, vw / 60));
-      // 0.92 leaves a little breathing room inside the cell rather than
-      // touching the next column edge-to-edge.
-      const maxFitNavSize =
-        maxNaturalLinkWidth > 0 ? (colWidth * 0.92) / (maxNaturalLinkWidth / linkRestSize) : desiredNavSize;
-      const heroNavSize = Math.max(11, Math.min(desiredNavSize, maxFitNavSize));
+      const maxNaturalLinkHeight = linkNaturalRects.reduce((max, r) => Math.max(max, r.height), 0);
+      // Column COUNT has to adapt too, not just font size: a fixed 3
+      // columns was the original approach, capping navScale against each
+      // column's width once it was known. That stopped "Certification"/
+      // "Achievement" from spilling into their own next column over at a
+      // GIVEN column count, but on a viewport where the photo eats most of
+      // the horizontal space beside it, 3 (even 2) columns can leave each
+      // cell narrower than the longest label can ever fit at a readable
+      // (16px+) size, no matter how far the font shrinks toward that
+      // floor, confirmed directly: at 1280x800 the widest label needed an
+      // 8.7px font to fit a 3-column cell, far under the 16px floor, so
+      // the floor won and every long label overlapped its neighbor by
+      // 15-40px regardless. Trying fewer, wider columns first is what
+      // actually guarantees a fit rather than just hoping 3 columns has
+      // enough room.
+      let cols = 3;
+      let colWidth = 0;
+      let maxFitNavSize = 0;
+      for (; cols >= 1; cols--) {
+        colWidth = Math.max(0, (gridAreaRight - gridAreaLeft - gridGap * (cols - 1)) / cols);
+        maxFitNavSize = maxNaturalLinkWidth > 0 ? (colWidth * 0.92) / (maxNaturalLinkWidth / linkRestSize) : Infinity;
+        if (maxFitNavSize >= 16 || cols === 1) break;
+      }
+      // Raised across the board per explicit "too small" feedback: floor
+      // 16->22, ceiling 24->34, and the vw divisor 60->42 so it climbs
+      // faster with viewport width too. maxFitNavSize (above) still caps
+      // this against each link's own column, so a real long label like
+      // "Certification" still can't spill into its neighbor regardless of
+      // how high this desired size goes.
+      const desiredNavSize = Math.max(22, Math.min(34, vw / 42));
+      const rows = Math.ceil(linkEls.length / cols);
+      // Same idea, against real vertical room in nav's own zone (see
+      // navZoneHeight above) instead of column width, so a tall grid on a
+      // short viewport shrinks rather than spilling into stats below it or
+      // FAVIAN above it. No fixed desiredNavSize ceiling here on purpose:
+      // once both real geometric caps (column width, zone height) are in
+      // place, a bigger screen with genuine room to spare is allowed to
+      // render nav links bigger too, not just capped at an arbitrary value.
+      const maxFitNavSizeForZone =
+        maxNaturalLinkHeight > 0
+          ? ((navZoneHeight - gridGap * (rows - 1)) / rows / maxNaturalLinkHeight) * linkRestSize
+          : desiredNavSize;
+      const heroNavSize = Math.max(16, Math.min(maxFitNavSize, maxFitNavSizeForZone));
       const navScale = heroNavSize / linkRestSize;
-      const navRowHeight = linkNaturalRects.reduce((max, r) => Math.max(max, r.height), 0) * navScale;
+      const navRowHeight = maxNaturalLinkHeight * navScale;
 
       // Name -> FAVIAN: sized to fill the viewport width between the two
       // side gaps, full stop, no height budget. Its z-index (0) is beneath
@@ -887,7 +1053,13 @@ function initHeroFlip() {
         const naturalWidth = naturalRect.width;
         name.style.fontSize = `${restSize}px`;
         if (naturalWidth) {
-          const heroSize = Math.max(restSize, ((vw - gap * 2) / naturalWidth) * 100);
+          const widthFitSize = ((vw - gap * 2) / naturalWidth) * 100;
+          // Largest font size whose scaled box still ends above the
+          // reserved band (with a little breathing room below it), so
+          // FAVIAN can never grow down into where nav/desc/stats live.
+          const availableNameHeight = Math.max(40, bandTop - nameTop - gap * 0.5);
+          const heightFitSize = (availableNameHeight / rest.height) * restSize;
+          const heroSize = Math.max(restSize, Math.min(widthFitSize, heightFitSize));
           const scale = heroSize / restSize;
           const heroWidth = rest.width * scale;
           const heroHeight = rest.height * scale;
@@ -917,9 +1089,12 @@ function initHeroFlip() {
       // dedicated vertical band at all, so neither the name nor the photo
       // has to shrink to make room for it.
       if (linkEls.length && photo) {
-        const rows = Math.ceil(linkEls.length / cols);
         const gridHeight = navRowHeight * rows + gridGap * (rows - 1);
-        const gridTop = vh - gap - gridHeight;
+        // Bottom-aligned within nav's own zone (not the raw viewport), and
+        // clamped so it can never rise above navZoneTop even if gridHeight
+        // somehow exceeds navZoneHeight (heroNavSize's zone cap above
+        // should already prevent that, this is just a hard floor).
+        const gridTop = Math.max(navZoneTop, navZoneTop + navZoneHeight - gridHeight);
         linkEls.forEach((el, i) => {
           const col = i % cols;
           const row = Math.floor(i / cols);
@@ -935,21 +1110,81 @@ function initHeroFlip() {
         });
       }
 
-      // Desc -> left flank, Stats -> right flank, centered on the middle of
-      // the bottom third of the viewport (0.835 = midpoint of the 67%-100%
-      // band) rather than the full-viewport center, simply scaled up in
-      // place, no width-fit precision needed like the name.
-      const flankCenter = vh * 0.835;
+      // Desc -> left flank, Stats -> right flank, stacked below nav in the
+      // same column. Desc has the whole reserved band to itself (nothing
+      // else shares its side of the photo), so it centers on bandCenter;
+      // stats shares the right column with nav (see navZoneHeight/
+      // statsZoneHeight above) so it centers on its own sub-zone instead,
+      // otherwise the two would land on the same y and overlap, which is
+      // what the previous shared flankCenter (a single fixed 0.835 * vh)
+      // actually did.
+      //
+      // Both scales are capped against the REAL free space beside the
+      // photo (photo.left for desc, vw - photo.right for stats) AND against
+      // their own zone's real height, not just applied at a fixed 1.8x/1.6x
+      // regardless of where the photo's edge or the band actually falls. An
+      // earlier version used the fixed scale unconditionally: it happened
+      // to clear the photo at one specific viewport size that was eyeballed
+      // during testing, but the photo's width is itself a function of vh
+      // (it's a fixed-aspect image at 90vh tall, so a shorter, wider
+      // desktop window makes the photo wider, not just shorter), so
+      // "clears the photo" was never actually guaranteed by that formula.
+      // Confirmed by computing the numbers directly: at a perfectly
+      // ordinary window size (1024x768), the fixed 1.8x desc scale produced
+      // a box that extended well past the photo's own left edge. Capping
+      // scale (uniformly, both axes together, same shape as scrubMove's own
+      // uniform-scale reasoning) rather than capping the resulting width
+      // alone keeps the text undistorted while shrinking to whatever room
+      // is actually free, instead of silently overlapping once the desired
+      // size no longer fits.
+      const bandCenter = (bandTop + bandBottom) / 2;
+      const statsCenter = statsZoneTop + statsZoneHeight / 2;
+      const photoRectForFlank = photo ? photo.getBoundingClientRect() : null;
       const desc = document.querySelector<HTMLElement>('[data-morph="desc"]');
       if (desc) {
         desc.style.position = 'relative';
         desc.style.zIndex = '1';
         const rest = desc.getBoundingClientRect();
-        const scale = 1.8;
+        const availableWidth = photoRectForFlank ? Math.max(0, photoRectForFlank.left - gap * 2) : vw - gap * 2;
+        const scale =
+          rest.width > 0 && rest.height > 0
+            ? Math.min(1.8, availableWidth / rest.width, bandHeight / rest.height)
+            : 1.8;
         const heroWidth = rest.width * scale;
         const heroHeight = rest.height * scale;
-        scrubFlip(desc, { left: gap, top: flankCenter - heroHeight / 2, width: heroWidth, height: heroHeight });
+        scrubFlip(desc, { left: gap, top: bandCenter - heroHeight / 2, width: heroWidth, height: heroHeight });
         scrubColor(desc);
+
+        // "software engineering" reads bold-only at rest in the sidebar,
+        // bigger AND full-caps at Hero time, on explicit instruction. The
+        // .desc-emphasis span's own font-size can't just be a static CSS
+        // ratio (see the comment on that class in global.css for why: the
+        // whole desc block above is scroll-scrubbed via transform:scale,
+        // so an em-relative size would apply the same ratio whether the
+        // block itself is tiny (rest) or huge (Hero), unable to tell the
+        // two states apart). Scrubbing the span's OWN font-size directly,
+        // tied to the same scroll range as everything else in this morph,
+        // is what actually makes it "smaller at rest, bigger at Hero"
+        // rather than a fixed multiple of whatever the surrounding text
+        // happens to be doing. text-transform can't be smoothly
+        // interpolated (it's not a continuous value), so it's a discrete
+        // class toggle at the halfway point of the same scroll range
+        // instead of a third scrubbed property.
+        const emphasis = desc.querySelector<HTMLElement>('.desc-emphasis');
+        if (emphasis) {
+          gsap.fromTo(
+            emphasis,
+            { fontSize: '1em' },
+            {
+              fontSize: '1.8em',
+              ease: 'none',
+              scrollTrigger: heroTrigger(),
+              onUpdate() {
+                emphasis.classList.toggle('is-hero-caps', this.progress() > 0.5);
+              },
+            },
+          );
+        }
       }
 
       const stats = document.querySelector<HTMLElement>('[data-morph="stats"]');
@@ -957,12 +1192,18 @@ function initHeroFlip() {
         stats.style.position = 'relative';
         stats.style.zIndex = '1';
         const rest = stats.getBoundingClientRect();
-        const scale = 1.6;
+        const availableWidth = photoRectForFlank
+          ? Math.max(0, vw - photoRectForFlank.right - gap * 2)
+          : vw - gap * 2;
+        const scale =
+          rest.width > 0 && rest.height > 0
+            ? Math.min(1.6, availableWidth / rest.width, statsZoneHeight / rest.height)
+            : 1.6;
         const heroWidth = rest.width * scale;
         const heroHeight = rest.height * scale;
         scrubFlip(stats, {
           left: vw - gap - heroWidth,
-          top: flankCenter - heroHeight / 2,
+          top: statsCenter - heroHeight / 2,
           width: heroWidth,
           height: heroHeight,
         });
@@ -973,6 +1214,22 @@ function initHeroFlip() {
   }
 
   build();
+  // Every measurement in build() (FAVIAN's rest/natural rects, every nav
+  // link's natural width) reads real rendered text, which depends on
+  // "Space Grotesk" actually being the font in use. If build() runs
+  // before that web font finishes loading, it measures whatever fallback
+  // font is rendering at that instant instead, computing a scale/target
+  // size from the WRONG metrics, and nothing here ever re-measures once
+  // the real font swaps in unless a resize happens to fire afterward,
+  // confirmed directly: FAVIAN rendered visibly narrower than full width
+  // with a distorted (non-uniform scaleX/scaleY) transform, while an
+  // independent from-scratch recomputation of the exact same formula
+  // gave the correct, uniform result. initMarquees() and initSmoothScroll()
+  // both already guard the same class of measurement against this via
+  // document.fonts.ready, this was the one spot in the file missing it.
+  if ('fonts' in document) {
+    document.fonts.ready.then(build);
+  }
   let resizeTimer: ReturnType<typeof setTimeout>;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
@@ -1047,6 +1304,12 @@ function initFooterMorph() {
     const progress = Math.min(1, Math.max(0, (window.scrollY - startScroll) / (maxScroll - startScroll || 1)));
     navFadeTween.progress(progress);
     btnColorTween?.progress(progress);
+    // Opacity alone doesn't stop clicks: a visitor could click one nav
+    // link, then a second, different one, before the fade visually
+    // finished, since the sidebar stayed fully hit-testable the whole
+    // time. Locked out well before the fade completes (not at progress
+    // 1), so there's no real window left to double-click through.
+    nav!.style.pointerEvents = progress > 0.2 ? 'none' : 'auto';
   }
 
   // Only the button's COLOR is driven here, never its opacity. The button

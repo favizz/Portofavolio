@@ -34,37 +34,47 @@ body {
   overflow-x: hidden;
 }
 
+/* Every padding value here is fluid (clamp), not a fixed rem/px number
+   that only changes at a couple of hardcoded breakpoints. A static gap
+   reads as disproportionately small on a very wide screen and
+   disproportionately large on a narrow one; scaling continuously with vw/
+   vh keeps the gap feeling proportional to the viewport at every size in
+   between, not just at 768px and 1024px. */
 .section {
   height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1.5rem;
+  padding: clamp(1.5rem, 5vh, 3rem) clamp(1rem, 4vw, 2rem);
   position: relative;
   overflow: hidden;
 }
 
 /* Reserve room for the persistent left side nav so section content never
    sits underneath it. Only needed at md+, where the side nav renders
-   instead of the mobile header/hamburger. */
+   instead of the mobile header/hamburger. This formula tracks SideNav's
+   own geometry (`left-2 lg:left-3` + `w-[clamp(11rem,13vw,14rem)]`) plus a
+   consistent ~2rem breathing gap after its right edge, as ONE continuous
+   clamp instead of two fixed breakpoint values (previously 15rem then
+   15.5rem) that didn't track the sidebar's own fluid width and left a
+   growing, uncontrolled gap at viewport widths between/beyond those two
+   fixed points. */
 @media (min-width: 768px) {
   .section {
-    padding-left: 18rem;
+    padding-left: clamp(13.5rem, 15vw, 16.5rem);
   }
 }
 
-@media (min-width: 1024px) {
-  .section {
-    padding-left: 19rem;
-  }
-}
-
-/* A clear boundary between sections, distinct from the "seamless scroll"
-   feel: the scroll motion itself stays smooth, but each section reads as
-   its own page rather than bleeding into the next. Solid color, not a
-   low-opacity wash, so the line itself is unmistakably visible. */
+/* Previously a deliberate, unmistakably visible 1px border between
+   sections ("A clear boundary... distinct from the seamless scroll
+   feel"). Removed outright per explicit "make the line between pages
+   invisible" instruction, reversing that earlier decision; the matching
+   Footer border-color override that made the Contact-to-Footer seam
+   match this same line is removed alongside it for the same reason,
+   leaving Footer's own original, much fainter border-primary-light/10
+   (Footer.astro) as the only seam treatment left anywhere. */
 .section + .section {
-  border-top: 1px solid var(--color-primary-strong);
+  border-top: none;
 }
 
 .reveal {
@@ -91,7 +101,7 @@ body {
 .section-heading {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  font-size: clamp(1.35rem, 3.2vw, 2.75rem);
   line-height: 1.15;
   color: var(--color-accent);
   display: -webkit-box;
@@ -131,25 +141,80 @@ body {
   transform: translateY(-2px) scale(1.03);
 }
 
-.back-arrow-icon {
-  display: inline-block;
-  width: 1.1rem;
-  height: 1.1rem;
-  background-color: currentColor;
-  -webkit-mask-image: url('/images/icons/back-arrow.webp');
-  mask-image: url('/images/icons/back-arrow.webp');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-}
-
 .btn-interactive:active {
   transform: translateY(0) scale(0.96);
   filter: brightness(0.9);
 }
+
+/* Card-face titles (Career's role, Projects' name, Certification's short
+   cert name): a fluid size instead of a fixed text-3xl, so a longer real
+   name (or a narrower card) shrinks the text rather than needing an
+   ellipsis. Paired with data-level short/acronym fields (experience.ts's
+   `short`/`shortRole`) for the genuinely long outliers, an ellipsis
+   ("...") was explicitly rejected in favor of "smaller, shorter, or an
+   acronym," this is the "smaller" half of that, applied everywhere so a
+   future long real name has somewhere to shrink to before it'd ever need
+   truncating again. */
+.card-title {
+  font-size: clamp(1.25rem, 2.2vw, 1.875rem);
+  line-height: 1.15;
+}
+
+/* "software engineering" inside the shared desc tagline (SideNav, Footer,
+   mobile Hero). This is the BASE/resting treatment: bold only, no size
+   bump, no caps, on explicit instruction ("dont change the one in side
+   bar, revert to bold only"). Footer's copy and SideNav's own copy AT
+   REST both use exactly this, unmodified.
+
+   SideNav's copy additionally gets a bigger, full-caps treatment ONLY at
+   Hero scroll time, but that can't be a second static CSS rule: it's the
+   SAME DOM node moving between the sidebar and Hero positions (the whole
+   block is scroll-scrubbed via a transform: scale in initHeroFlip(),
+   see "Hero layout and the true-morph system" in dev/CLAUDE.md), so a
+   plain em-relative font-size here would apply the SAME ratio in both
+   states, unable to tell "resting" from "Hero" apart. Instead,
+   initHeroFlip() drives this element's OWN font-size (1em -> ~1.8em) and
+   toggles a `.is-hero-caps` class directly, tied to the same scroll
+   progress as everything else in that morph, see the `emphasis` scrub
+   right after `scrubColor(desc)` in motion.ts. Mobile's Hero bio
+   (Hero.astro's .mobile-hero-bio) has no sidebar-resting state to
+   morph from at all (mobile never shows the sidebar), so it gets the
+   Hero-equivalent treatment unconditionally via a plain CSS rule below,
+   no JS involved for that copy. */
+.desc-emphasis {
+  font-weight: 700;
+  font-size: 1em;
+  text-transform: none;
+}
+
+/* Sidebar's own copy specifically (this element also carries the Hero
+   morph, [data-morph="desc"] is unique to it, Footer's identical copy
+   has no such wrapper): a bit thinner than the shared 700 default above,
+   but still visibly heavier than the surrounding regular-weight text,
+   per explicit "thinner but not as thin as the other text" feedback. */
+[data-morph="desc"] .desc-emphasis {
+  font-weight: 600;
+}
+
+.desc-emphasis.is-hero-caps {
+  text-transform: uppercase;
+}
+
+.mobile-hero-bio .desc-emphasis {
+  font-size: 1.8em;
+  text-transform: uppercase;
+}
+
+/* Ambient "this is tappable" hint for mobile's collapsed list rows (title
+   + date/time only, image and secondary line hidden, see the
+   [data-expand-default] rules below): a static icon shipped once and was
+   removed outright (it could visually collide with other row content),
+   replaced by a slow, continuous, GSAP-driven press pulse instead, see
+   initListPulse() in motion.ts. Only runs on rows that can actually
+   expand (Career/Projects; Certification/Achievement never expand, so
+   they never get this class), and only while nothing in that grid is
+   currently expanded (a real expanded card shouldn't visually compete
+   with an ambient "tap me" cue elsewhere on the page). */
 
 /* Text-style call-to-action: highlighted text with an arrow, used instead
    of boxed buttons for directional/navigation actions. */
@@ -171,103 +236,350 @@ body {
   gap: 0.65rem;
 }
 
-/* Expand-to-carousel pattern shared by Projects, Career, and Academic.
-   The grid/carousel/stage containers are hooked via data-expand-*
-   attributes (not classes) so components can keep their own Tailwind
-   utility classes on the same elements without collision.
-   The carousel is a static list of name labels covering ALL items
-   (including the selected one, which stays highlighted); cards themselves
-   never move into the carousel. */
+/* Achievement/Certification are plain vertical lists, not a hscroll/
+   expand-grid carousel (see the note on that pattern below), so unlike
+   Career/Projects nothing scales the available scroll distance with
+   content: a section is a fixed 100svh with overflow: hidden (a
+   deliberate trip-wire, see Section sizing in CLAUDE.md), so a list long
+   enough to exceed that height would silently clip past the fold instead
+   of ever being reachable, with no indication anything was cut off.
+   Capped and independently scrollable so an arbitrarily long list (the
+   dataset doubling, tripling, whatever) stays fully reachable without
+   breaking the "one section, one screen" rhythm every other section
+   keeps. 55vh leaves comfortable headroom above today's short (4-item)
+   lists even on a short laptop viewport (~700px, see the same note on
+   .section-heading), so nothing about the current look changes; it only
+   kicks in once a list actually grows past it. Unscoped by viewport width
+   on purpose: .section's 100svh/overflow:hidden applies at every width
+   (mobile's [data-expand-grid] carve-out below doesn't cover these two,
+   they aren't expand-grids), so mobile needs the same protection. */
+.achievement-list,
+.cert-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Expand-to-modal pattern shared by Career and Projects (Certification and
+   Achievement are plain non-expanding lists, see their own components).
+   The grid/carousel containers are hooked via data-expand-* attributes
+   (not classes) so components can keep their own Tailwind utility classes
+   on the same elements without collision. The expanded card becomes a
+   fixed-position modal (see .card-modal-backdrop and
+   .expand-card[data-modal-open] below) rather than moving into a stage
+   that lives inside the grid's own layout, see the big comment in
+   motion.ts's initExpandableGrids() (at the expand()/closeModal()
+   functions) for why. The grid itself never changes display mode when a
+   card is expanded, since the modal is entirely decoupled from it now. */
 [data-expand-grid] {
   display: grid;
   transition: gap 0.4s ease;
 }
 
-[data-expand-grid][data-expanded] {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 1.25rem;
-}
-
-@media (min-width: 768px) {
-  [data-expand-grid][data-expanded] {
-    flex-direction: row;
-  }
-}
-
+/* The desktop-only label list this used to hold is gone: with the
+   expanded card now a centered fixed-position modal instead of a stage
+   living inside the grid's own row, there's no longer a natural "beside
+   the stage" slot for it, and a fixed-position label column risked
+   overlapping the sidebar at common laptop widths. The mobile chevron
+   overlay (data-carousel-nav) already solved the same "pick another
+   card while one is open" need more simply, so it's now used
+   universally instead of maintaining two separate mechanisms. */
 [data-expand-carousel] {
   display: none;
 }
 
-[data-expand-stage] {
+/* While expanded, the not-selected cards stay hidden in the default slot
+   (the open one is excluded: it's still a child of [data-expand-default]
+   in the DOM, position:fixed only changes where it renders, an ancestor
+   or sibling-scoped display:none would hide it right along with the
+   others otherwise). */
+[data-expand-grid][data-expanded] [data-expand-default] .expand-card:not([data-modal-open="true"]) {
   display: none;
 }
 
-[data-expand-grid][data-expanded] [data-expand-carousel] {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.4rem;
-  width: 100%;
-  flex-shrink: 0;
-  max-height: 35vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.5rem 0.25rem;
-  -webkit-overflow-scrolling: touch;
+/* Prev/next chevrons removed per explicit report + instruction: the modal
+   showed only half its width on mobile (the other half offscreen),
+   reproducible immediately on first open (not just after cycling cards),
+   so it wasn't a chevron-click-handler bug specifically, but the chevron
+   nav was the prime suspect since it renders alongside the modal from
+   that same first open and couldn't be conclusively cleared through code
+   review + hand-computed centering math alone (no working narrow-viewport
+   test available to confirm directly). Cycling between cards without
+   closing the modal has no replacement now; closing and reopening a
+   different card still works. If a cycling mechanism comes back, don't
+   reuse this exact fixed-position/vw-width approach without verifying on
+   a real phone first. */
+[data-carousel-nav] {
+  display: none;
 }
 
-@media (min-width: 768px) {
-  [data-expand-grid][data-expanded] [data-expand-carousel] {
-    justify-content: center;
-    width: 200px;
-    max-height: 100%;
+.carousel-nav-btn {
+  cursor: pointer;
+  pointer-events: auto;
+  border: none;
+  background: none;
+  width: 5rem;
+  height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.carousel-nav-btn svg {
+  width: 3rem;
+  height: 3rem;
+  display: block;
+}
+
+.carousel-nav-btn:not([disabled]):hover {
+  opacity: 0.85;
+}
+
+.carousel-nav-btn:not([disabled]):active {
+  opacity: 1;
+  transform: scale(0.85);
+}
+
+.carousel-nav-btn[disabled] {
+  opacity: 0.15;
+  pointer-events: none;
+  cursor: default;
+}
+
+/* The expanded card as a fixed-position modal: centered horizontally,
+   top-anchored (not vertically centered with transform, deliberately,
+   see the note on .card-title-adjacent chevron nav above for why top-
+   anchoring both together keeps their bounds in sync), capped to 85vh
+   with its own internal scroll so real content can NEVER be cropped by
+   an ancestor's overflow:hidden the way the old stage-inside-the-grid
+   approach kept being, worst case the visitor scrolls inside the modal
+   itself. `!important` on width overrides the collapsed-state
+   w-[300px]/md:w-[380px] Tailwind utility still present on the same
+   element (only relevant while collapsed; once modal-open, this wins). */
+.card-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.75);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-modal-backdrop[data-open="true"] {
+  pointer-events: auto;
+}
+
+/* Centered via left/right + margin, not left: 50% + transform:
+   translateX(-50%): a real phone screenshot showed the modal shifted so
+   its left edge sat at roughly the screen's horizontal center with no
+   compensating leftward shift at all, extending off the right edge, one
+   `expand-card` open every time, immediately on first open. The GSAP
+   entrance tween also animates `scale` on this same element (see
+   expand() in motion.ts), and on some browsers/devices the `translateX`
+   half of the transform doesn't reliably survive that composition even
+   though it was directly confirmed intact in a desktop test session,
+   root cause never fully isolated. Margin-based centering doesn't touch
+   `transform` at all, so it can't be affected by whatever GSAP (or the
+   browser) does to that property, however it's happening. */
+.expand-card[data-modal-open="true"] {
+  position: fixed !important;
+  top: 7.5vh;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 91;
+  width: min(90vw, 800px) !important;
+  max-width: none !important;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: default;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-primary-deep) 92%, transparent);
+}
+
+@media (max-width: 767px) {
+  .expand-card[data-modal-open="true"] {
+    width: 92vw !important;
+    max-height: 88vh;
+    /* Same dvh correction as the carousel-nav override above: vh assumes
+       the address bar is collapsed, so on a real phone with it showing,
+       a modal sized/positioned from vh sits lower and taller than the
+       actually-visible viewport, cropping off the bottom portion, which
+       is what was reported from a real device. */
+    top: 7.5dvh;
+    max-height: 88dvh;
+    /* Never scrollable on mobile, per explicit instruction: the image and
+       text below are sized to fit within this box instead (smaller
+       stage-media max-height, fluid/smaller card-detail text, see below),
+       so there's nothing left to scroll to in the normal case. Hidden,
+       not auto: if some unusually long real content ever did exceed this
+       box despite that, it clips rather than silently becoming
+       scrollable again. */
+    overflow-y: hidden;
   }
 }
 
-[data-expand-grid][data-expanded] [data-expand-stage] {
-  display: block;
-  flex: 1 1 auto;
-  min-width: 0;
+/* Row/column split + image column sizing, shared by Career and Projects
+   (previously duplicated in each component's own scoped <style>, keyed
+   off `.career-grid :global(...)`/`.project-grid :global(...)` ancestor
+   selectors). That ancestry-based scoping broke once the modal-open card
+   started being reparented to document.body (see the big comment in
+   motion.ts's expand() for why the reparent itself is necessary): once
+   the card is no longer a DOM descendant of .career-grid/.project-grid,
+   an ancestor-scoped selector simply stops matching, silently dropping
+   the whole row/column layout. Since both components' rules were already
+   byte-for-byte identical, consolidating here instead of trying to
+   preserve two copies of an ancestor-independent selector is both the
+   fix and a simplification. */
+.expand-card[data-modal-open="true"] {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
 }
 
-/* While expanded, the not-selected cards stay hidden in the default slot. */
-[data-expand-grid][data-expanded] [data-expand-default] .expand-card {
+/* iPhone XR's own logical aspect ratio (414/896), so the expanded photo
+   reads as a real device-sized frame rather than an arbitrary box; the
+   image fills it edge to edge (object-cover on the img, no more
+   bg-white/p-10 letterboxing, that treatment was only ever a stand-in
+   for showing a plain logo before real photos existed for these
+   sections). */
+.expand-card[data-modal-open="true"] .stage-media {
+  width: 40%;
+  min-width: 220px;
+  max-width: 340px;
+  aspect-ratio: 414 / 896;
+  flex-shrink: 0;
+}
+
+.expand-card[data-modal-open="true"] .card-detail {
+  flex: 1 1 auto;
+}
+
+/* 767px, matching the md boundary the rest of the mobile/desktop system
+   switches on. Below it the modal itself also narrows (92vw instead of
+   min(90vw,800px) above), too narrow for a row layout to read well, so
+   the image stacks above the text instead. */
+@media (max-width: 767px) {
+  .expand-card[data-modal-open="true"] {
+    flex-direction: column;
+  }
+
+  .expand-card[data-modal-open="true"] .stage-media {
+    width: 100%;
+    max-width: none;
+    /* Same iPhone XR ratio as desktop, not square, a mobile-only square
+       override shipped once and was explicitly reversed ("no square
+       picture again"): the expanded view is meant to read as "the full
+       card," and a tall portrait ratio matches that better than a
+       square crop. max-height caps it by a screen PERCENTAGE rather
+       than trusting the aspect-ratio alone: at mobile modal widths,
+       414/896 alone would compute a height taller than the modal's own
+       88vh cap, so the photo could crowd out all of card-detail's own
+       text. object-cover still fills this shorter box cleanly, it just
+       crops a bit more. Reduced from 50vh/50dvh: since the modal can no
+       longer scroll on mobile (see above), the image's old budget left
+       too little room for card-detail's own (variable-length, real)
+       text content to ever fit without clipping, this and the smaller
+       card-detail text/padding below are what actually makes "never
+       scrollable" hold up in practice. */
+    max-height: 32vh;
+    max-height: 32dvh;
+  }
+
+  /* Card-detail's own text shrinks to make room for the rest of this
+     budget: Tailwind's static text-3xl/text-base/text-sm classes in the
+     markup have no mobile-specific value of their own (same problem the
+     hscroll row's w-[300px] override elsewhere in this file solves the
+     same way), so they're overridden here instead of duplicating the
+     component markup with mobile-only classes. Padding trimmed too
+     (1.5rem -> 1rem) for the same reason: reclaiming space the no-longer-
+     scrollable layout actually needs. */
+  .expand-card[data-modal-open="true"] .card-detail {
+    padding: 1rem;
+  }
+
+  .expand-card[data-modal-open="true"] .card-detail h3 {
+    font-size: clamp(1.15rem, 5vw, 1.5rem);
+  }
+
+  .expand-card[data-modal-open="true"] .card-detail > p,
+  .expand-card[data-modal-open="true"] .card-detail ul {
+    font-size: clamp(0.8rem, 3.4vw, 0.9rem);
+  }
+
+  .expand-card[data-modal-open="true"] .card-detail ul {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Shrink/close button: a direct child of .expand-card now (moved out of
+   .card-detail in Career.astro/Projects.astro), so it can sit "in front
+   of the image, at the card's corner" on mobile, where the image is the
+   first, full-width child stacked at the top of the column, without
+   fighting .card-detail's own position:relative for its containing
+   block. Hidden by default (only .expand-card[data-modal-open] makes it
+   visible), since it's no longer covered by .card-detail's own
+   display:none/flex toggle now that it lives outside that element. */
+.expand-back-btn {
   display: none;
 }
 
-/* Carousel items, styled after dev/Frame-1-carousel-ref.png: a plain text
-   stack with no panel, border, or glow. The selected item is full-contrast
-   and the rest fade progressively with distance from it (data-dist set by
-   syncLabels in motion.ts). */
-.carousel-item {
-  cursor: pointer;
-  text-align: left;
-  padding: 0.4rem 0.25rem;
-  border: none;
-  background: transparent;
-  font-size: 0.9rem;
-  color: white;
-  opacity: 0.12;
-  transition: opacity 0.3s ease, font-weight 0.3s ease;
+/* Desktop: fixed to the modal's own top-right corner regardless of how
+   far the visitor has scrolled WITHIN the modal (.expand-card is the
+   scrolling container there, overflow-y: auto above), anchored to the
+   viewport at coordinates computed from the modal's own known, static
+   position (top: 7.5vh, horizontally centered, width min(90vw,800px)),
+   so it stays reachable no matter how long the card's content is or how
+   far it's scrolled. */
+.expand-card[data-modal-open="true"] .expand-back-btn {
+  display: flex;
+  position: fixed;
+  top: calc(7.5vh + 1rem);
+  right: max(calc(50% - min(90vw, 800px) / 2 + 1rem), 1rem);
+  z-index: 93;
 }
 
-.carousel-item[data-dist="2"] {
-  opacity: 0.25;
+/* Mobile: never scrolls (see the modal/stage-media overrides below), so
+   the button doesn't need viewport-relative math to "survive scrolling"
+   the way desktop's does. Plain position: absolute relative to
+   .expand-card itself (a direct parent now, and still position: fixed
+   while modal-open, which is just as valid a containing block for an
+   absolutely-positioned descendant), landing at the card's own top-right
+   corner, over the top-right of the image, since the image is the full-
+   width first child of the column layout. This also sidesteps the
+   real-device centering bug the old fixed/vw-based version was exposed
+   to (see the note on .expand-card[data-modal-open] centering above). */
+@media (max-width: 767px) {
+  .expand-card[data-modal-open="true"] .expand-back-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+  }
 }
 
-.carousel-item[data-dist="1"] {
-  opacity: 0.45;
-}
+/* Mobile's collapsed list: title and date/period only, no thumbnail image
+   and no secondary line (company/issuer/tag), a plain scannable list
+   instead of a stack of full cards. The full card (image, secondary
+   line, everything) still shows once a card is actually expanded into
+   the stage, this only thins out the COLLAPSED default-slot view. Career,
+   Projects, and Achievement share this exact card-face shape (image
+   wrapper, then a title+date row, then one trailing paragraph), so one
+   rule covers all three; Certification (which never expands, see its own
+   scoped style block) handles its own mobile simplification separately
+   since it needs to keep its "View here" link reachable with no expanded
+   view to reveal it later. */
+@media (max-width: 767px) {
+  [data-expand-default] .card-face > .hover-border {
+    display: none;
+  }
 
-.carousel-item:hover {
-  opacity: 0.7;
-}
-
-.carousel-item[data-active="true"] {
-  opacity: 1;
-  font-weight: 600;
+  [data-expand-default] .card-face > p {
+    display: none;
+  }
 }
 
 .expand-card {
@@ -281,48 +593,20 @@ body {
   display: none;
 }
 
-[data-expand-stage] .expand-card .card-detail {
+.expand-card[data-modal-open="true"] .card-detail {
   display: flex;
   flex-direction: column;
   text-align: left;
 }
 
-.expand-card .role-note,
-.expand-card .role-team {
-  display: none;
-}
-
-[data-expand-stage] .expand-card .role-note,
-[data-expand-stage] .expand-card .role-team {
-  display: inline-block;
-}
-
-[data-expand-stage] .expand-card {
-  width: 100% !important;
+.expand-card[data-modal-open="true"] {
   min-height: 420px;
   align-items: flex-start;
   text-align: left;
   border-color: color-mix(in srgb, var(--color-accent) 70%, transparent) !important;
 }
 
-[data-expand-stage] .expand-card .card-face {
-  align-items: flex-start;
-  text-align: left;
-}
-
-/* heynesh-style list grids (Academic, Certification, Projects): the default
-   state is a stacked list of numbered rows, not a card grid. */
-[data-expand-grid][data-list] {
-  display: flex;
-  flex-direction: column;
-}
-
-[data-expand-grid][data-list][data-expanded] {
-  flex-direction: row;
-}
-
-[data-expand-grid][data-list] [data-expand-stage] .expand-card .card-face,
-[data-expand-grid][data-hscroll] [data-expand-stage] .expand-card .card-face {
+.expand-card[data-modal-open="true"] .card-face {
   display: none;
 }
 
@@ -347,31 +631,85 @@ body {
    treatment rather than reusing the desktop scroll-hijack effect (GSAP's
    pin+scrub translate fought real touch/momentum scrolling, confirmed in
    production as the row visually scrambling instead of translating
-   smoothly). The row falls back to plain native horizontal scroll here,
-   no JS involved: `overflow` flips from hidden to a touch-scrollable auto,
-   and `transform` is cleared since nothing is driving it anymore. */
+   smoothly).
+   An earlier version fell back to a native horizontal swipe strip here
+   (same cards, just `overflow-x: auto` instead of the GSAP pin). That's
+   still sideways thumb-scrolling for content that reads better top to
+   bottom on a narrow screen, so this instead stacks the cards into a
+   plain vertical list, full page-scroll, no internal scroll container of
+   its own, no JS involved: `transform` is cleared since nothing drives it
+   on mobile, `flex-direction: column` stacks the cards, and each card is
+   forced to the full available width (overriding its `w-[300px]
+   md:w-[380px]` desktop sizing, which has no mobile-specific value of its
+   own since it was only ever meant to be read at md+). */
 @media (max-width: 767px) {
   [data-expand-grid][data-hscroll]:not([data-expanded]) {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
   }
 
   [data-expand-grid][data-hscroll]:not([data-expanded]) [data-expand-default] {
+    flex-direction: column;
     will-change: auto;
     transform: none !important;
   }
+
+  [data-expand-grid][data-hscroll]:not([data-expanded]) [data-expand-default] .expand-card {
+    width: 100% !important;
+  }
 }
 
-[data-expand-grid][data-hscroll][data-expanded] [data-expand-default] {
-  display: none;
+/* .section is a fixed 100svh with overflow:hidden everywhere else (a
+   deliberate trip-wire, see Section sizing in CLAUDE.md), but on mobile
+   any section holding a [data-expand-grid] can genuinely need more than
+   one screen's worth of height, for TWO separate reasons: the hscroll
+   grids (Project, Certification, Career) turn into a vertical list of
+   cards below md, whose natural height is "however many cards exist";
+   and, independently, ANY expand-grid's own EXPANDED detail view (school
+   name, degree, GPA, coursework tags for Academic, project/role
+   descriptions for the others) is real variable-length text content with
+   no guaranteed one-screen budget, unlike the deliberately-constrained
+   collapsed summary each section otherwise shows. Academic specifically
+   was missed in an earlier pass here: it's `[data-list]`, not
+   `[data-hscroll]` (it's always a compact list, collapsed or not, no
+   carousel/pin distinction), so scoping this purely to `[data-hscroll]`
+   left its OWN expanded-card view still clipped at exactly 100svh on a
+   short phone. Targeting `[data-expand-grid]` generally, rather than
+   either specific variant, covers both cases (and any future
+   data-expand-grid section) in one rule instead of two separate
+   carve-outs that each have to be remembered to extend. `:has()` finds
+   the containing .section without needing to hand-tag each section's own
+   id; height becomes intrinsic and overflow is no longer clipped,
+   letting the section grow and push the rest of the page down like a
+   normal document instead of clipping to one screen's worth of content. */
+@media (max-width: 767px) {
+  .section:has([data-expand-grid]) {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
 }
+
+/* No longer hides the whole default-slot while a card is expanded: the
+   open card lives INSIDE [data-expand-default] (position:fixed doesn't
+   move it out of the DOM, only where it renders), so display:none here
+   would have hidden the modal right along with the rest of the row. The
+   individual not-open cards are already hidden one level up (the
+   :not([data-modal-open]) rule above), that alone is enough, and since
+   they're display:none their absence doesn't leave a visible gap for
+   the (invisible-behind-the-backdrop-anyway) row underneath. */
 
 /* Stage-only media column, hidden while collapsed. */
 .expand-card .stage-media {
   display: none;
 }
 
-[data-expand-stage] .expand-card .stage-media {
+.expand-card[data-modal-open="true"] .stage-media {
   display: block;
+  /* Belt and suspenders against the photo overflowing its box: the
+     per-component width/aspect-ratio/max-height rules (Career.astro,
+     Projects.astro) are what actually size this box, but object-cover on
+     the img alone doesn't stop the BOX itself from ever rendering larger
+     than intended if those interact in a way that isn't airtight at some
+     viewport size, this clips it outright regardless. */
+  overflow: hidden;
 }

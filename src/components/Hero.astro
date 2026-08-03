@@ -25,21 +25,16 @@ const mobileStats = [
        itself is hidden below that breakpoint). Below md this is its own,
        separate, simpler composition, not a shrunk copy of the desktop
        effect: a real heading (own scale, not the edge-to-edge wordmark),
-       and the photo treated as a floated object with `shape-outside` so
-       the bio paragraph actually wraps around its silhouette instead of
-       sitting in a fixed column beside a fixed image, matching the
-       intended "picture as an object, text wraps through" that only
-       works when the photo participates in normal document flow (a
-       `position: fixed` element, like the desktop photo above, can't be
-       floated at all). -->
+       then the bio and stats, then the photo last, stacked as a normal
+       block element beneath everything else. -->
   <div class="mobile-hero">
     <p class="mobile-hero-eyebrow reveal" data-reveal>Home</p>
     <h1 class="mobile-hero-heading reveal" data-reveal>FAVIAN</h1>
     <div class="mobile-hero-body reveal" data-reveal>
-      <img src="/images/profile-cutout.webp" alt="Portrait of Favian Izza" class="mobile-hero-photo" />
       <p class="mobile-hero-bio">
-        I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
-        machine learning models written from scratch, then polished until they feel production ready.
+        {`Information Systems & Technology graduate from ITB, with   `}
+        <span class="desc-emphasis">software engineering</span>
+        {`   internship experience at two leading manufacturing companies.`}
       </p>
     </div>
     <div class="mobile-hero-stats reveal" data-reveal>
@@ -52,6 +47,12 @@ const mobileStats = [
         ))
       }
     </div>
+    <img
+      src="/images/profile-cutout.webp"
+      alt="Portrait of Favian Izza"
+      class="mobile-hero-photo reveal"
+      data-reveal
+    />
   </div>
 </section>
 
@@ -75,6 +76,21 @@ const mobileStats = [
      */
   .hero-section {
     z-index: 5;
+    /* Required once this got an explicit z-index (above): a positioned
+       stacking context intercepts clicks for its ENTIRE bounding box
+       before hit-testing considers anything painting through it, even at
+       coordinates where the section itself has no visible content of its
+       own (transparent background). This section's only real content is
+       the photo, which already has its own pointer-events: none, and the
+       mobile-only block below, which has none of its own interactive
+       elements right now (re-enabled there defensively regardless, in
+       case that changes). Without this, the section's now-elevated
+       stacking context silently ate every click meant for anything
+       visually overlapping Hero's screen area from elsewhere in the DOM,
+       nav links and the Contact Me button included, confirmed directly
+       with elementFromPoint(): clicking at a nav link's own coordinates
+       hit-tested to this SECTION, not the link. */
+    pointer-events: none;
   }
 
   .hero-photo-fixed {
@@ -112,12 +128,25 @@ const mobileStats = [
     display: none;
     position: relative;
     z-index: 1;
+    /* hero-section above is now pointer-events: none for click-passthrough
+       reasons, re-enable it here so this block's own content (if it ever
+       grows interactive elements) still receives clicks normally. */
+    pointer-events: auto;
     height: 100%;
     width: 100%;
     flex-direction: column;
     justify-content: center;
-    gap: 0.85rem;
-    padding: 1.5rem 1.25rem;
+    gap: 0.6rem;
+    /* No bottom inset: the photo (margin-top: auto below) is meant to
+       touch the true bottom edge of the screen, a padding-bottom here
+       would leave a gap instead. Top padding raised from 1rem to clear
+       Header.astro's fixed mobile header (position: fixed, top: 0, a
+       measured 72px tall: py-4 padding plus its h-10 toggle button),
+       which otherwise overlapped this section's own top content, since
+       a fixed header doesn't push normal document content down the way
+       an in-flow one would. 5.5rem (88px) clears it with a little
+       breathing room to spare. */
+    padding: 5.5rem 1.25rem 0;
   }
 
   @media (max-width: 767px) {
@@ -140,8 +169,11 @@ const mobileStats = [
     line-height: 0.95;
     /* Its own scale, deliberately not the desktop wordmark shrunk down,
        a full-bleed edge-to-edge FAVIAN doesn't fit a narrow viewport's
-       reading flow the way it can dominate a wide desktop screen. */
-    font-size: clamp(2.5rem, 15vw, 3.5rem);
+       reading flow the way it can dominate a wide desktop screen. Raised
+       across the board (2.5/15vw/3.5rem -> 2.75/16vw/4rem) per explicit
+       "texts get bigger" feedback; the extra room it needs comes out of
+       the gap/padding reductions below, not by shrinking anything else. */
+    font-size: clamp(2.75rem, 16vw, 4rem);
     color: white;
   }
 
@@ -153,34 +185,40 @@ const mobileStats = [
        `justify-content: center` handle vertical centering of the group
        as a whole instead. */
     flex: 0 1 auto;
-    /* Contains the float: without this, the section's own height wouldn't
-       account for the floated photo extending past the paragraph's own
-       (shorter) content height. */
-    overflow: hidden;
+    /* A deliberately bigger gap specifically between FAVIAN and the bio,
+       on top of .mobile-hero's own shared 0.6rem flex gap, per explicit
+       request. The other transitions (eyebrow->heading, stats->photo)
+       keep the tighter shared gap; only this one is called out. */
+    margin-top: 1.5rem;
   }
 
   .mobile-hero-photo {
-    float: right;
-    width: 44%;
-    max-width: 12rem;
-    aspect-ratio: 1 / 1;
+    display: block;
+    /* Full width (the actual portrait is a 1:1 square, confirmed from the
+       source file, so this renders exactly as wide as it is tall, not an
+       arbitrary crop), maintaining its natural ratio rather than the
+       previous 55%-wide/26vh-capped block. max-height is a safety net for
+       unusually short viewports only: on any normal phone height, width:
+       100% is the binding constraint (the square photo just isn't tall
+       enough to hit 45vh at a mobile content column's width), so this
+       doesn't fight "full width" in practice. */
+    width: 100%;
     height: auto;
-    margin: 0 -0.5rem 0.6rem 1rem;
-    /* The actual "picture as an object, text wraps through" request: a
-       real CSS shape-outside, computed from the cutout's own alpha
-       channel (a clean binary mask, confirmed by sampling pixel alpha
-       values directly, no soft/semi-transparent edges to confuse the
-       shape), only possible because this image is a normal floated
-       element, unlike the desktop photo above which is `position: fixed`
-       and can never be floated or shape-wrapped around at all. */
-    shape-outside: url('/images/profile-cutout.webp');
-    shape-image-threshold: 0.5;
-    shape-margin: 0.85rem;
+    aspect-ratio: 1 / 1;
+    max-height: 45vh;
+    /* margin-top: auto (a flex child of .mobile-hero's column) consumes
+       all remaining vertical space above the photo instead of centering
+       it with the rest of the group, pinning it flush against the
+       screen's true bottom edge (helped by .mobile-hero's own
+       padding-bottom: 0 above) rather than sitting mid-screen with empty
+       space below it, per explicit "touches the bottom of screen"
+       request. Horizontal centering (left/right auto) is unaffected. */
+    margin: auto auto 0;
   }
 
   .mobile-hero-bio {
-    font-size: clamp(0.85rem, 3.6vw, 0.95rem);
-    line-height: 1.55;
+    font-size: clamp(0.95rem, 4vw, 1.05rem);
+    line-height: 1.5;
     color: rgba(255, 255, 255, 0.75);
   }
 
@@ -197,12 +235,12 @@ const mobileStats = [
   .mobile-stat-num {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.05rem, 5vw, 1.4rem);
+    font-size: clamp(1.2rem, 5.5vw, 1.6rem);
     color: var(--color-accent);
   }
 
   .mobile-stat-label {
-    font-size: 0.58rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: rgba(255, 255, 255, 0.6);

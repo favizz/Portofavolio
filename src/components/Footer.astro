@@ -3,27 +3,25 @@ import { socials } from '../data/socials';
 
 const links = [
   { id: 'home', label: 'Home' },
-  { id: 'about', label: 'About' },
-  { id: 'academic', label: 'Academic' },
-  { id: 'certification', label: 'Certification' },
-  { id: 'project', label: 'Projects' },
-  { id: 'technology', label: 'Technology' },
   { id: 'career', label: 'Career' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'project', label: 'Projects' },
   { id: 'achievement', label: 'Achievement' },
+  { id: 'certification', label: 'Certification' },
   { id: 'contact', label: 'Contact' },
 ];
 
 const year = new Date().getFullYear();
 ---
 
-<footer class="relative border-t border-primary-light/10 bg-bg/60 px-6 py-12 md:px-10">
+<footer class="relative border-t border-primary-light/10 bg-bg/60 px-6 py-12 md:mt-32 md:px-10">
   <div class="mx-auto grid w-full gap-10 text-left sm:grid-cols-2 md:grid-cols-3">
     <div class="reveal" data-reveal>
       <a href="#home" class="font-display text-xl font-bold text-white">favian izza.</a>
-      <p class="mt-3 max-w-xs text-sm text-text-muted">
-        I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines,
-        and machine learning models written from scratch, then polished until they feel
-        production ready.
+      <p class="mt-3 max-w-sm text-sm text-text-muted">
+        {`Information Systems & Technology graduate from ITB, with `}
+        <span class="desc-emphasis">software engineering</span>
+        {` internship experience at two leading manufacturing companies.`}
       </p>
     </div>
 

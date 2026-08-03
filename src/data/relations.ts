@@ -28,3 +28,23 @@ export function findRelatedProject(tags: string[]): { slug: string; name: string
   const project = projects.find((p) => p.tags.some((t) => tags.some((tag) => tag.toLowerCase() === t.toLowerCase())));
   return project ? { slug: project.slug, name: project.name } : null;
 }
+
+/**
+ * Same as findRelatedProject, but honors an experience entry's explicit
+ * `relatedProjectSlug` first (a real, direct relationship stated by the
+ * user, e.g. ITB -> Netflow, that doesn't come from genuine shared tags,
+ * so forcing it through tag-overlap would mean giving ITB a fake
+ * technology tag just to make the match work, which would incorrectly
+ * make that technology's tile on the Technology page link to ITB too).
+ * Falls back to the normal tag-based match when no override is set.
+ */
+export function findRelatedProjectForJob(job: {
+  tags: string[];
+  relatedProjectSlug?: string;
+}): { slug: string; name: string } | null {
+  if (job.relatedProjectSlug) {
+    const project = projects.find((p) => p.slug === job.relatedProjectSlug);
+    if (project) return { slug: project.slug, name: project.name };
+  }
+  return findRelatedProject(job.tags);
+}

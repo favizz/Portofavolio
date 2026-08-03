@@ -5,6 +5,8 @@ export const projects = [
     tag: 'IoT Prepaid Utility Metering System',
     period: 'Jun 2026',
     image: '/images/placeholders/expand.webp',
+    cardImage: '/images/projects/netflow-front.webp',
+    stageImage: '/images/projects/netflow-inside.webp',
     description:
       'A NestJS + MySQL backend streaming live MQTT telemetry from 2,444+ smart meters into prepaid token billing.',
     highlights: [
@@ -12,7 +14,7 @@ export const projects = [
       'Multi-tenant access secured with Google OAuth 2.0, JWT, and RBAC across buildings',
     ],
     tags: ['NestJS', 'MySQL', 'MQTT', 'JWT'],
-    url: 'https://drive.google.com/drive/folders/1Yo1Xu1pgWwON9hH7FGfrOcYH0vCQgCFK',
+    url: 'https://netflow-demo.vercel.app/',
   },
   {
     slug: 'genealogy-platform',
@@ -20,6 +22,8 @@ export const projects = [
     tag: 'Full-Stack System Design',
     period: 'Mar 2026',
     image: '/images/placeholders/expand.webp',
+    cardImage: '/images/projects/genealogy-platform-front.webp',
+    stageImage: '/images/projects/genealogy-platform-inside.webp',
     description:
       'A full-stack application built on a shared-type monorepo, mapping complex, non-linear family structures.',
     highlights: [
@@ -27,7 +31,7 @@ export const projects = [
       'Interactive visualization with React Flow, supporting multi-parent and non-linear relationships',
     ],
     tags: ['NestJS', 'Next.js', 'PostgreSQL', 'React Flow'],
-    url: 'https://github.com/IlllIllIIIlIlIll/genyra-familytree',
+    url: 'https://genyra.vercel.app/',
   },
   {
     slug: 'fraud-detection-system',
@@ -35,6 +39,8 @@ export const projects = [
     tag: 'Custom ML Pipeline',
     period: 'Dec 2025',
     image: '/images/placeholders/expand.webp',
+    cardImage: '/images/projects/fraud-detection-system-front.webp',
+    stageImage: '/images/projects/fraud-detection-system-inside.webp',
     description:
       'An end-to-end fraud detection pipeline on 100k+ transactions with severe class imbalance (~14%).',
     highlights: [
@@ -42,44 +48,22 @@ export const projects = [
       'Improved fraud recall from 0.02 to 0.52 via class weighting and SMOTE, cutting false negatives 25x',
     ],
     tags: ['Python', 'Machine Learning', 'Scikit-learn'],
-    url: 'https://github.com/IlllIllIIIlIlIll/Fraud-Detection-using-Machine-Learning-Algorithm',
-  },
-  // Dummy entries below only exist to exercise the horizontal carousel.
-  // They are excluded from About's stats and flagged in dev/TASK.md.
-  {
-    slug: 'dummy-aurora',
-    name: 'Aurora Dashboard (Dummy)',
-    tag: 'Placeholder Entry',
-    period: '2025',
-    image: '/images/placeholders/expand.webp',
-    description: 'Dummy project used to test the horizontal carousel layout.',
-    highlights: ['Replace with a real project or remove'],
-    tags: [],
-    url: '#',
-    dummy: true,
+    url: 'https://detection-fraud-demo.vercel.app/',
   },
   {
-    slug: 'dummy-orbit',
-    name: 'Orbit Tracker (Dummy)',
-    tag: 'Placeholder Entry',
-    period: '2025',
+    slug: 'trich-website',
+    name: 'Trich AI Barberspace',
+    tag: 'AI-Driven Barbershop Website',
+    period: 'Nov 2024',
     image: '/images/placeholders/expand.webp',
-    description: 'Dummy project used to test the horizontal carousel layout.',
-    highlights: ['Replace with a real project or remove'],
+    cardImage: '/images/projects/trich-website-front.webp',
+    stageImage: '/images/projects/trich-website-inside.webp',
+    description:
+      'The public-facing website for an AI-driven barbershop concept, built end-to-end as the Front-End Developer during the Trich AI Barberspace internship.',
+    highlights: [
+      'Implemented a responsive, sleek UI/UX from concept to production, optimizing interactions to match requirements',
+    ],
     tags: [],
-    url: '#',
-    dummy: true,
-  },
-  {
-    slug: 'dummy-nebula',
-    name: 'Nebula Notes (Dummy)',
-    tag: 'Placeholder Entry',
-    period: '2024',
-    image: '/images/placeholders/expand.webp',
-    description: 'Dummy project used to test the horizontal carousel layout.',
-    highlights: ['Replace with a real project or remove'],
-    tags: [],
-    url: '#',
-    dummy: true,
+    url: 'https://trich-demo.vercel.app/',
   },
 ];

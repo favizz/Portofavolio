@@ -5,14 +5,11 @@ import { certifications } from '../data/certifications';
 import { achievements } from '../data/achievements';
 
 const links = [
-  { id: 'home', label: 'Home' },
-  { id: 'about', label: 'About Me' },
-  { id: 'academic', label: 'Academic' },
-  { id: 'certification', label: 'Certification' },
-  { id: 'project', label: 'Project' },
-  { id: 'technology', label: 'Technology' },
   { id: 'career', label: 'Career' },
+  { id: 'technology', label: 'Technology' },
+  { id: 'project', label: 'Project' },
   { id: 'achievement', label: 'Achievement' },
+  { id: 'certification', label: 'Certification' },
   { id: 'contact', label: 'Contact' },
 ];
 
@@ -37,9 +34,11 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
   <div class="nav-panel rounded-xl px-4 py-2" data-panel>
     <span class="font-display text-base font-bold uppercase leading-none text-black" data-morph="name">Favian</span>
     <p class="mt-1 text-[11px] leading-snug text-black/70" data-morph="desc">
-      I like building things that ship, not just demos: backend APIs, IoT telemetry pipelines, and
-      machine learning models written from scratch, then polished until they feel production
-      ready.
+      {`Information Systems & Technology graduate from ITB, with`}
+      <br />
+      <span class="desc-emphasis">software engineering</span>
+      <br />
+      {`internship experience at two leading manufacturing companies.`}
     </p>
   </div>
 
