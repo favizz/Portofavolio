@@ -12,7 +12,7 @@ import { findTechRelation } from '../data/relations';
       Languages, frameworks, and tools I reach for to ship full-stack systems.
     </h2>
 
-    <div class="mt-12 grid w-full grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6">
+    <div class="mt-12 flex w-full flex-wrap gap-3">
       {
         technology.map((tech) => {
           const relation = findTechRelation(tech.name);
@@ -20,7 +20,7 @@ import { findTechRelation } from '../data/relations';
           return (
             <Tag
               type={relation ? 'button' : undefined}
-              class={`reveal hover-border group flex flex-col items-center gap-2 rounded-xl bg-primary-deep/40 p-4 ${relation ? 'cursor-pointer' : 'cursor-default'}`}
+              class={`reveal group flex w-auto flex-none flex-col items-center gap-3 rounded-xl p-3 ${relation ? 'cursor-pointer' : 'cursor-default'}`}
               data-reveal
               data-open-section={relation ? relation.type : undefined}
               data-open-slug={relation ? relation.slug : undefined}
@@ -30,16 +30,16 @@ import { findTechRelation } from '../data/relations';
               {tech.path ? (
                 <svg
                   viewBox="0 0 24 24"
-                  class="h-8 w-8 fill-current text-primary-light transition-colors group-hover:[color:var(--glow)]"
+                  class="h-12 w-12 fill-current text-primary-light transition-colors group-hover:[color:var(--glow)]"
                 >
                   <path d={tech.path} />
                 </svg>
               ) : (
-                <span class="flex h-8 w-8 items-center justify-center text-xs font-bold text-primary-light transition-colors group-hover:[color:var(--glow)]">
+                <span class="flex h-12 w-12 items-center justify-center text-[18px] font-bold text-primary-light transition-colors group-hover:[color:var(--glow)]">
                   SQL
                 </span>
               )}
-              <span class="text-xs text-text-muted">{tech.name}</span>
+              <span class="text-[18px] text-text-muted">{tech.name}</span>
             </Tag>
           );
         })

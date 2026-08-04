@@ -1180,7 +1180,21 @@ function initHeroFlip() {
               ease: 'none',
               scrollTrigger: heroTrigger(),
               onUpdate() {
-                emphasis.classList.toggle('is-hero-caps', this.progress() > 0.5);
+                const progress = this.progress();
+                emphasis.classList.toggle('is-hero-caps', progress > 0.5);
+                // The <br/> tags splitting this paragraph into 3 lines (see
+                // SideNav.astro) are static markup, shared by both the Hero-
+                // scaled and resting states since it's literally the same
+                // DOM node (see the true-morph system). Per explicit "on
+                // home page... combined... not new line" feedback, scoped
+                // ONLY to the Hero display: progress 0 is Hero (scroll=0,
+                // verified via the FAVIAN scrubFlip using the identical
+                // fromTo-direction), progress 1 is the resting sidebar, so
+                // hiding <br/> below the same 0.5 midpoint the caps toggle
+                // above already uses keeps both discrete switches happening
+                // at the same scroll point instead of visibly disagreeing
+                // mid-transition.
+                desc.classList.toggle('is-hero-inline', progress < 0.5);
               },
             },
           );

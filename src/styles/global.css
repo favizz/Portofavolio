@@ -200,6 +200,18 @@ body {
   text-transform: uppercase;
 }
 
+/* The <br/> line breaks in SideNav.astro's desc paragraph (splitting it
+   into 3 lines at rest) are hidden while this element is in its Hero-
+   scaled display, per explicit "on home page desc... combined... not new
+   line" feedback scoped to desktop only (this class only ever gets
+   toggled on by initHeroFlip's desc scrub, which doesn't run below
+   768px, mobile's own .mobile-hero-bio copy is a separate element
+   entirely and is unaffected). Toggled in motion.ts alongside
+   is-hero-caps, same scroll progress, same 0.5 threshold. */
+[data-morph="desc"].is-hero-inline br {
+  display: none;
+}
+
 .mobile-hero-bio .desc-emphasis {
   font-size: 1.8em;
   text-transform: uppercase;
