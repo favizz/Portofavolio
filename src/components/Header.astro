@@ -12,7 +12,8 @@ const links = [
 ---
 
 <header
-  class="fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-8 px-6 py-4 bg-primary-dark/70 backdrop-blur-md md:hidden"
+  id="mobile-header"
+  class="mobile-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-8 px-6 py-4 bg-primary-dark/70 backdrop-blur-md md:hidden"
 >
   <a href="#home" class="relative z-40 font-display text-xl font-bold text-white">favian izza.</a>
 
@@ -77,6 +78,22 @@ const links = [
 </div>
 
 <style>
+  /* Idle-hide, mobile only (this header doesn't render at md+ at all):
+     slides up and fades rather than just disappearing, per explicit
+     "smoothly" request. transform, not display/visibility, so the
+     transition actually has something to animate. Never hidden while the
+     menu itself is open (see the script below), the toggle button has to
+     stay reachable to close it. */
+  .mobile-header {
+    transition: transform 0.4s ease, opacity 0.4s ease;
+  }
+
+  .mobile-header.is-idle {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .menu-bar {
     width: 22px;
     height: 2px;
@@ -154,5 +171,46 @@ const links = [
     menu.querySelectorAll('a').forEach((link) => {
       link.addEventListener('click', closeMenu);
     });
+  }
+
+  // Idle-hide: any scroll or touch activity shows the header immediately
+  // and resets a 2.2s countdown; once that expires with no further
+  // activity, it hides (see .mobile-header.is-idle in the style block
+  // above for the actual transition). Guarded against the menu being
+  // open so the toggle button never disappears out from under a visitor
+  // mid-interaction, and against a currently-focused header link (rare,
+  // but hiding a focused element mid-keyboard-navigation would strand
+  // it). window scroll, not Lenis, since Lenis mirrors its position onto
+  // native scroll and this only needs to know "did anything happen",
+  // not the exact position.
+  const header = document.getElementById('mobile-header');
+  if (header) {
+    let idleTimer: ReturnType<typeof setTimeout>;
+    const IDLE_MS = 2200;
+
+    const showHeader = () => {
+      header.classList.remove('is-idle');
+    };
+
+    const scheduleHide = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        const menuOpen = menu?.classList.contains('is-open');
+        const focusInsideHeader = header.contains(document.activeElement);
+        if (!menuOpen && !focusInsideHeader) {
+          header.classList.add('is-idle');
+        }
+      }, IDLE_MS);
+    };
+
+    const onActivity = () => {
+      showHeader();
+      scheduleHide();
+    };
+
+    window.addEventListener('scroll', onActivity, { passive: true });
+    window.addEventListener('touchstart', onActivity, { passive: true });
+    window.addEventListener('pointerdown', onActivity);
+    scheduleHide();
   }
 </script>

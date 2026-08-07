@@ -10,6 +10,32 @@ const {
   title = "Favian's Portfolio",
   description = 'Portfolio of Favian Izza, a front-end developer crafting sleek, responsive, and user-friendly applications.',
 } = Astro.props;
+
+// Astro.site comes from the `site` config in astro.config.mjs, the single
+// source of truth for the domain, so canonical/OG/Twitter urls below never
+// drift from what the sitemap and robots.txt reference. new URL(...) rather
+// than string concatenation so it handles Astro.url.pathname's leading
+// slash correctly regardless of what page this layout ever gets used from.
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL('/og-image.png', Astro.site);
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: 'Favian Izza Diasputra',
+  url: Astro.site?.toString(),
+  jobTitle: 'Software Engineer',
+  email: 'mailto:izza.diasputra10@gmail.com',
+  sameAs: [
+    'https://github.com/IlllIllIIIlIlIll',
+    'https://www.linkedin.com/in/favianizza/',
+    'https://www.instagram.com/favianizza/',
+  ],
+  alumniOf: {
+    '@type': 'CollegeOrUniversity',
+    name: 'Bandung Institute of Technology (ITB)',
+  },
+};
 ---
 
 <!doctype html>
@@ -17,10 +43,25 @@ const {
   <head>
     <meta charset="utf-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="canonical" href={canonicalURL} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <title>{title}</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageURL} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonicalURL} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
   </head>
   <body>
     <slot />

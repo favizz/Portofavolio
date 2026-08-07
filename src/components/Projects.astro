@@ -81,12 +81,25 @@ import { projects } from '../data/projects';
               </div>
 
               <div class="stage-media">
+                {/* Mobile uses the same card-face ("Fr") photo as the
+                    collapsed view instead of the dedicated stage ("In")
+                    photo, per explicit instruction. Two <img> tags
+                    swapped by breakpoint rather than one src, since
+                    Astro/CSS has no way to pick a different bitmap per
+                    media query on a single <img>. */}
                 <img
                   src={project.stageImage ?? project.image}
                   alt={`${project.name} preview`}
                   loading="lazy"
                   decoding="async"
-                  class="h-full w-full object-cover"
+                  class="hidden h-full w-full object-cover md:block"
+                />
+                <img
+                  src={project.cardImage ?? project.image}
+                  alt={`${project.name} preview`}
+                  loading="lazy"
+                  decoding="async"
+                  class="h-full w-full object-cover md:hidden"
                 />
               </div>
 

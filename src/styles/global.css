@@ -119,9 +119,26 @@ body {
   line-height: 1.5;
 }
 
-.nav-link[data-active="true"] {
+/* .nav-link is shared by two contexts with opposite backgrounds (Header's
+   dark mobile menu, SideNav's white panels), so the active state needs to
+   be scoped per context rather than one shared rule: an unscoped `color:
+   white` would render correctly in the dark mobile menu but be invisible
+   (white text on the sidebar's own white panel) in SideNav, a real bug
+   caught before it ever shipped visibly. */
+#mobile-menu .nav-link[data-active="true"] {
   color: white;
   font-weight: 600;
+}
+
+/* Underline (not just a color/weight change) so "which section am I in"
+   reads at a glance even at the sidebar's small resting text size, per
+   explicit request. text-underline-offset keeps it from crowding the
+   descenders of letters like "g" in "Technology". */
+[data-side-nav] .nav-link[data-active="true"] {
+  color: black;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .hover-border {

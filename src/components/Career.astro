@@ -115,20 +115,48 @@ const sortedExperience = [...experience].sort(
                     <span class="flex-shrink-0 text-sm text-text-muted">{job.period}</span>
                   </div>
                   <p class="mt-1 text-base text-text-muted">{job.short}</p>
+                  {/* Mobile's collapsed row hides the paragraph above
+                      entirely (see [data-expand-default] .card-face > p in
+                      global.css, shared with Projects), leaving just
+                      title + date with no company name at all. This is a
+                      SEPARATE, mobile-only line rather than un-hiding that
+                      one, so Projects' own collapsed row (never asked to
+                      show a second line) isn't affected by the same rule. */}
+                  <p class="mt-1 text-sm text-text-muted md:hidden">{job.company}</p>
                 </div>
 
                 <div class="stage-media">
+                  {/* Mobile uses the same card-face ("Fr") photo as the
+                      collapsed view instead of the dedicated stage ("In")
+                      photo, per explicit instruction. Two <img> tags
+                      swapped by breakpoint rather than one src, since
+                      Astro/CSS has no way to pick a different bitmap per
+                      media query on a single <img>. */}
                   <img
                     src={job.stageImage ?? job.logo}
                     alt={`${job.company} visual`}
                     loading="lazy"
                     decoding="async"
-                    class="h-full w-full object-cover"
+                    class="hidden h-full w-full object-cover md:block"
+                  />
+                  <img
+                    src={job.cardImage ?? job.logo}
+                    alt={`${job.company} visual`}
+                    loading="lazy"
+                    decoding="async"
+                    class="h-full w-full object-cover md:hidden"
                   />
                 </div>
 
                 <div class="card-detail relative z-10 w-full flex-1 p-6">
-                  <h3 class="font-display text-3xl font-semibold text-white">{job.role}</h3>
+                  <h3 class="font-display text-3xl font-semibold text-white">
+                    {job.role}
+                    {job.employmentTag && (
+                      <span class="ml-2 align-middle rounded-full bg-primary-deep px-2.5 py-1 text-xs font-medium tracking-wide text-text-muted">
+                        {job.employmentTag}
+                      </span>
+                    )}
+                  </h3>
                   <p class="mt-1 text-sm font-medium">
                     <span class="text-accent">{job.company}</span>
                     {job.team && <span class="text-text-muted"> - {job.team}</span>}

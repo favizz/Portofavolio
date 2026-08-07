@@ -1227,22 +1227,27 @@ function initHeroFlip() {
     });
   }
 
-  build();
   // Every measurement in build() (FAVIAN's rest/natural rects, every nav
   // link's natural width) reads real rendered text, which depends on
-  // "Space Grotesk" actually being the font in use. If build() runs
-  // before that web font finishes loading, it measures whatever fallback
-  // font is rendering at that instant instead, computing a scale/target
-  // size from the WRONG metrics, and nothing here ever re-measures once
-  // the real font swaps in unless a resize happens to fire afterward,
-  // confirmed directly: FAVIAN rendered visibly narrower than full width
-  // with a distorted (non-uniform scaleX/scaleY) transform, while an
-  // independent from-scratch recomputation of the exact same formula
-  // gave the correct, uniform result. initMarquees() and initSmoothScroll()
-  // both already guard the same class of measurement against this via
-  // document.fonts.ready, this was the one spot in the file missing it.
+  // "Space Grotesk" actually being the font in use. Building immediately
+  // AND again on fonts.ready (an earlier version of this fix) measured
+  // the fallback font first, computed a visibly-too-narrow FAVIAN from
+  // it, then snapped instantly to the correct width once the real font
+  // swapped in, a jarring "loads short, then jump-cuts to full width"
+  // reported directly. Waiting for fonts.ready before the FIRST (and
+  // only) build call means FAVIAN never renders from wrong metrics in
+  // the first place, so there's nothing to visibly correct later; the
+  // brief pre-font window instead just shows nothing (the sidebar's own
+  // resting elements haven't received their Hero transform yet), an
+  // unremarkable, ordinary page-load moment rather than a bug. Building
+  // a SECOND time here on top of this would reintroduce the same snap
+  // (two scrub tweens on the same transform don't blend, whichever
+  // renders last just replaces the other outright), so this stays a
+  // single call, not an addition to it.
   if ('fonts' in document) {
     document.fonts.ready.then(build);
+  } else {
+    build();
   }
   let resizeTimer: ReturnType<typeof setTimeout>;
   window.addEventListener('resize', () => {

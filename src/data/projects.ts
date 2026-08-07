@@ -20,7 +20,7 @@ export const projects = [
     slug: 'genealogy-platform',
     name: 'Genealogy Platform',
     tag: 'Full-Stack System Design',
-    period: 'Mar 2026',
+    period: 'Mar 2026 - Present',
     image: '/images/placeholders/expand.webp',
     cardImage: '/images/projects/genealogy-platform-front.webp',
     stageImage: '/images/projects/genealogy-platform-inside.webp',
@@ -29,6 +29,7 @@ export const projects = [
     highlights: [
       'Custom graph layout engine for complex family structures using BFS-based positioning',
       'Interactive visualization with React Flow, supporting multi-parent and non-linear relationships',
+      'BFS-based consanguinity checks flag close-relative conflicts up to 3 generations',
     ],
     tags: ['NestJS', 'Next.js', 'PostgreSQL', 'React Flow'],
     url: 'https://genyra.vercel.app/',
