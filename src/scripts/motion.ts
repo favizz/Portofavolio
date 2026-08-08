@@ -147,19 +147,44 @@ function initParallax() {
   });
 }
 
+// Shared by initActiveSection() and initScrollLock(): finds whichever
+// section currently covers the most viewport area, from LIVE rects on
+// every call rather than a cached/precomputed scroll position. That
+// matters for Career/Project: GSAP's hscroll pin holds their rect.top at
+// 0 for the whole pin, a scroll distance well beyond the section's own
+// natural height, so a live check stays correct through the pin while a
+// precomputed trigger (see initActiveSection() below) does not.
+function mostVisibleSection(sections: HTMLElement[]): HTMLElement | null {
+  const vh = window.innerHeight;
+  let best: HTMLElement | null = null;
+  let bestRatio = 0;
+
+  sections.forEach((section) => {
+    const rect = section.getBoundingClientRect();
+    const visible = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+    const ratio = visible / Math.min(rect.height, vh);
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      best = section;
+    }
+  });
+
+  return best;
+}
+
+// Used to be one ScrollTrigger per section ('top center' -> 'bottom
+// center'), whose start/end are computed ONCE from the section's own
+// natural rect. That silently desynced on Career/Project: the hscroll pin
+// holds those sections on screen far longer than their natural height (the
+// pin adds its own scroll distance on top), so 'bottom center' fired the
+// moment the natural-height point passed, moving the underline to the next
+// link while the pinned carousel was still being scrolled through. Reusing
+// the live, rect-based mostVisibleSection() (already proven correct for
+// pinned sections by initScrollLock(), which reads rect.top === 0 for the
+// whole pin) fixes this by construction, it has nothing cached to go stale.
 function initActiveSection() {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
   const dots = Array.from(document.querySelectorAll<HTMLElement>('[data-section]'));
-
-  sections.forEach((section) => {
-    ScrollTrigger.create({
-      trigger: section,
-      start: 'top center',
-      end: 'bottom center',
-      onEnter: () => setActive(section.id),
-      onEnterBack: () => setActive(section.id),
-    });
-  });
 
   function setActive(id: string) {
     dots.forEach((dot) => {
@@ -170,6 +195,15 @@ function initActiveSection() {
     // logic of its own.
     document.body.setAttribute('data-active-section', id);
   }
+
+  function update() {
+    const current = mostVisibleSection(sections);
+    if (current) setActive(current.id);
+  }
+
+  update();
+  window.lenisInstance?.on('scroll', update);
+  window.addEventListener('resize', update);
 }
 
 
@@ -186,6 +220,17 @@ function initExpandableGrids() {
     modalBackdrop.className = 'card-modal-backdrop';
     document.body.appendChild(modalBackdrop);
   }
+
+  // Shared across every grid, for the same reason the backdrop above is
+  // shared: only one card can ever be open at a time, even across
+  // different grids (Career and Projects). Without this, cross-linking
+  // from an already-open Career card to a Project card (the "Related
+  // project" line) left Career's card open underneath: openCard/closeModal
+  // used to be declared per-grid inside the forEach below, so Career's own
+  // closure had no way to know Projects had just opened a card, and never
+  // closed itself. The two modals then rendered stacked at the same fixed
+  // position, one bleeding through the other mid-fade.
+  let activeCloseModal: (() => void) | null = null;
 
   document.querySelectorAll<HTMLElement>('[data-expand-grid]').forEach((grid) => {
     const sectionId = grid.dataset.expandSection ?? '';
@@ -400,6 +445,7 @@ function initExpandableGrids() {
       grid.removeAttribute('data-expanded');
       syncLabels('');
       pulseTween?.play();
+      if (activeCloseModal === closeModal) activeCloseModal = null;
     }
 
     function onKeydown(event: KeyboardEvent) {
@@ -410,6 +456,15 @@ function initExpandableGrids() {
       if (grid.getAttribute('data-expanded') === slug) return;
       const card = cards.find((c) => c.dataset.slug === slug);
       if (!card) return;
+
+      // A different grid's card is currently open (e.g. Career's "Related
+      // project" cross-link while Career's own modal is still up): close it
+      // first, synchronously, before this grid opens its own. Cycling
+      // between cards WITHIN the same grid never hits this, activeCloseModal
+      // already equals this grid's own closeModal by the time that happens.
+      if (activeCloseModal && activeCloseModal !== closeModal) {
+        activeCloseModal();
+      }
 
       const wasExpanded = grid.hasAttribute('data-expanded');
       pulseTween?.pause();
@@ -432,6 +487,7 @@ function initExpandableGrids() {
       card.setAttribute('data-modal-open', 'true');
       openCard = card;
       grid.setAttribute('data-expanded', slug);
+      activeCloseModal = closeModal;
 
       if (wasExpanded) {
         // Cycling between already-expanded cards (label/chevron browsing):
@@ -570,24 +626,6 @@ function initScrollLock() {
   // each other instead of settling.
   let cooldownUntil = 0;
 
-  function mostVisibleSection(): HTMLElement | null {
-    const vh = window.innerHeight;
-    let best: HTMLElement | null = null;
-    let bestRatio = 0;
-
-    sections.forEach((section) => {
-      const rect = section.getBoundingClientRect();
-      const visible = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
-      const ratio = visible / Math.min(rect.height, vh);
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        best = section;
-      }
-    });
-
-    return best;
-  }
-
   // Whether this section is worth snapping to: it must be misaligned by a
   // real amount, but not so far that snapping would yank the user across a
   // large distance they clearly scrolled on purpose.
@@ -623,11 +661,11 @@ function initScrollLock() {
   // a user can consciously notice while idling.
   function attemptLock() {
     if (isSnapping || Date.now() < suppressLockUntil || Date.now() < cooldownUntil) return;
-    const section = mostVisibleSection();
+    const section = mostVisibleSection(sections);
     if (!section || snapOffset(section) === null) return;
 
     lockTimer = setTimeout(() => {
-      const stillBest = mostVisibleSection();
+      const stillBest = mostVisibleSection(sections);
       if (stillBest !== section || snapOffset(section) === null) return;
 
       const lenis = window.lenisInstance;
@@ -1393,13 +1431,17 @@ function initMarquees() {
   });
 }
 
+// The email address is split across two data attributes (user/domain)
+// rather than written out in the markup, so it isn't sitting in the raw
+// HTML source as plain, scrapable text. Assembled here at runtime instead,
+// for both the copy-to-clipboard button and the footer's mailto link.
 // Clicking the email copies it to the clipboard instead of opening a mail
 // client, with the button's own text standing in for feedback (no separate
 // toast element needed).
 function initEmailCopy() {
   document.querySelectorAll<HTMLButtonElement>('[data-copy-email]').forEach((btn) => {
-    const email = btn.dataset.email ?? '';
-    const original = btn.textContent ?? email;
+    const email = `${btn.dataset.user ?? ''}@${btn.dataset.domain ?? ''}`;
+    btn.textContent = email;
     let resetTimer: ReturnType<typeof setTimeout> | null = null;
 
     btn.addEventListener('click', async () => {
@@ -1412,9 +1454,13 @@ function initEmailCopy() {
       btn.textContent = 'Copied to clipboard';
       if (resetTimer) clearTimeout(resetTimer);
       resetTimer = setTimeout(() => {
-        btn.textContent = original;
+        btn.textContent = email;
       }, 2000);
     });
+  });
+
+  document.querySelectorAll<HTMLAnchorElement>('[data-mailto-user]').forEach((link) => {
+    link.href = `mailto:${link.dataset.mailtoUser ?? ''}@${link.dataset.mailtoDomain ?? ''}`;
   });
 }
 

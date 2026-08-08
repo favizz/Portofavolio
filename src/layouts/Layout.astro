@@ -7,8 +7,8 @@ interface Props {
 }
 
 const {
-  title = "Favian's Portfolio",
-  description = 'Portfolio of Favian Izza, a front-end developer crafting sleek, responsive, and user-friendly applications.',
+  title = 'Favian Izza | Software Engineer Portfolio - Full-Stack & IoT',
+  description = 'Portfolio of Favian Izza, a software engineer building full-stack platforms, IoT telemetry pipelines, and machine learning systems from the ground up.',
 } = Astro.props;
 
 // Astro.site comes from the `site` config in astro.config.mjs, the single
@@ -30,6 +30,8 @@ const jsonLd = {
     'https://github.com/IlllIllIIIlIlIll',
     'https://www.linkedin.com/in/favianizza/',
     'https://www.instagram.com/favianizza/',
+    'https://www.facebook.com/fvniz',
+    'https://x.com/fvniz',
   ],
   alumniOf: {
     '@type': 'CollegeOrUniversity',
@@ -42,7 +44,16 @@ const jsonLd = {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    {/* All three icon links point at the same source logo (favicon.png,
+        512x512), so the browser tab, bookmarks, and mobile home-screen
+        icon never disagree with each other. favicon.ico used to be a
+        stale leftover from Astro's project scaffold, never regenerated
+        when the logo was swapped in, and browsers check that root path
+        as an implicit fallback regardless of the <link> tags below, so
+        it's now regenerated from the same PNG rather than left mismatched. */}
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />

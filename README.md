@@ -1,6 +1,6 @@
 # Favian Izza
 
-Hi, I'm Favian — an Information Systems & Technology graduate from ITB, with software engineering internship experience at Siemens and Toyota Group.
+Hi, I'm Favian, an Information Systems & Technology graduate from ITB, with software engineering internship experience at Siemens and Toyota Group.
 
 This is my personal portfolio: a single scrolling page covering my career, projects, technical skills, achievements, and certifications.
 
@@ -18,6 +18,8 @@ This is my personal portfolio: a single scrolling page covering my career, proje
 - GitHub: [IlllIllIIIlIlIll](https://github.com/IlllIllIIIlIlIll)
 - LinkedIn: [favianizza](https://www.linkedin.com/in/favianizza/)
 - Instagram: [@favianizza](https://www.instagram.com/favianizza/)
+- Facebook: [fvniz](https://www.facebook.com/fvniz)
+- X: [@fvniz](https://x.com/fvniz)
 - WhatsApp: [Message me](https://wa.me/62081289529832)
 
 ---

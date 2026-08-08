@@ -20,7 +20,7 @@ export const experience = [
   {
     slug: 'toyota-astra-motor',
     company: 'PT Toyota Astra Motor',
-    short: 'TAM',
+    short: 'Toyota Astra',
     companyNote: "Indonesia's official Toyota distributor",
     role: 'Software Engineer',
     employmentTag: 'Intern',
@@ -39,7 +39,7 @@ export const experience = [
   {
     slug: 'tmmin',
     company: 'PT Toyota Motor Manufacturing Indonesia',
-    short: 'TMMIN',
+    short: 'Toyota',
     companyNote: "Toyota, #1 world's largest automaker",
     role: 'Regulator',
     employmentTag: 'Intern',

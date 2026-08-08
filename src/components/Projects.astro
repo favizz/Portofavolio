@@ -73,7 +73,7 @@ import { projects } from '../data/projects';
                 </div>
                 <div class="mt-2 flex items-baseline gap-3">
                   <h3 class="card-title min-w-0 flex-1 font-display font-semibold text-white transition-colors group-hover:text-accent">
-                    {project.name}
+                    {project.shortName ?? project.name}
                   </h3>
                   <span class="flex-shrink-0 text-sm text-text-muted">{project.period}</span>
                 </div>
