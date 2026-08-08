@@ -207,6 +207,177 @@ function initActiveSection() {
 }
 
 
+// Fades the top and/or bottom edge of a scrolled .card-detail pane (see the
+// mask-image rules in global.css) as a hint that there's more content past
+// that edge, now that its scrollbar is hidden and there's otherwise no cue
+// left that text got cut off by the box rather than genuinely ending there.
+// Reads LIVE scrollTop/scrollHeight on every call rather than caching
+// anything, so it can't go stale the way a precomputed value would: only
+// fades an edge that both has real overflow AND isn't already scrolled to
+// that edge, a card whose content already fits gets no fade on either side.
+function updateCardFade(detail: HTMLElement) {
+  const hasOverflow = detail.scrollHeight > detail.clientHeight + 1;
+  const atTop = detail.scrollTop <= 1;
+  const atBottom = detail.scrollTop + detail.clientHeight >= detail.scrollHeight - 1;
+  detail.dataset.fadeTop = String(hasOverflow && !atTop);
+  detail.dataset.fadeBottom = String(hasOverflow && !atBottom);
+}
+
+// Real drag-and-throw physics for the .phone-mock element inside a Project
+// card's stage-media (Projects.astro, desktop only). Pointer Events (not
+// mouse/touch separately) with setPointerCapture, so a fast drag that
+// briefly leaves the element's own box mid-gesture keeps tracking correctly
+// instead of dropping the drag. `container` bounds the physics (real
+// clientWidth/height read fresh every call, not cached, so a resize or a
+// different card's own box size is always current): position is expressed
+// as a pixel offset from the element's own centered CSS rest position (see
+// .phone-mock's translate(-50%, -50%) in global.css), clamped to keep the
+// element's edges inside the container's edges rather than letting its
+// center reach them, which would let half the phone hang outside the box.
+// On release, velocity (a short rolling average of recent pointermove
+// deltas, not just the single last-pixel sample, which reads as noisy/
+// jittery for a "throw") carries into a friction + edge-bounce simulation
+// each animation frame until it settles below a small speed threshold.
+// Rotation is derived directly from current velocity every frame rather
+// than being its own separate physics variable, so it decays to 0 in
+// lockstep with the throw settling, no separate state to keep in sync.
+function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
+  const FRICTION = 0.94;
+  const BOUNCE_DAMP = 0.55;
+  const SETTLE_SPEED = 0.04;
+  const MAX_ROTATION = 14;
+
+  let x = 0;
+  let y = 0;
+  let vx = 0;
+  let vy = 0;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  let lastT = 0;
+  let rafId: number | null = null;
+
+  function bounds() {
+    const maxX = Math.max(0, (container.clientWidth - phone.offsetWidth) / 2);
+    const maxY = Math.max(0, (container.clientHeight - phone.offsetHeight) / 2);
+    return { maxX, maxY };
+  }
+
+  function render() {
+    const rot = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, vx * 1.4));
+    phone.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`;
+  }
+
+  function step() {
+    const { maxX, maxY } = bounds();
+    x += vx;
+    y += vy;
+    vx *= FRICTION;
+    vy *= FRICTION;
+
+    if (x > maxX) {
+      x = maxX;
+      vx = -Math.abs(vx) * BOUNCE_DAMP;
+    } else if (x < -maxX) {
+      x = -maxX;
+      vx = Math.abs(vx) * BOUNCE_DAMP;
+    }
+    if (y > maxY) {
+      y = maxY;
+      vy = -Math.abs(vy) * BOUNCE_DAMP;
+    } else if (y < -maxY) {
+      y = -maxY;
+      vy = Math.abs(vy) * BOUNCE_DAMP;
+    }
+
+    render();
+
+    if (Math.hypot(vx, vy) > SETTLE_SPEED) {
+      rafId = requestAnimationFrame(step);
+    } else {
+      vx = 0;
+      vy = 0;
+      rafId = null;
+    }
+  }
+
+  function onPointerDown(event: PointerEvent) {
+    event.stopPropagation();
+    dragging = true;
+    vx = 0;
+    vy = 0;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    phone.setPointerCapture(event.pointerId);
+    lastX = event.clientX;
+    lastY = event.clientY;
+    lastT = performance.now();
+  }
+
+  function onPointerMove(event: PointerEvent) {
+    if (!dragging) return;
+    const now = performance.now();
+    const dt = Math.max(1, now - lastT);
+    const dx = event.clientX - lastX;
+    const dy = event.clientY - lastY;
+
+    const { maxX, maxY } = bounds();
+    x = Math.min(maxX, Math.max(-maxX, x + dx));
+    y = Math.min(maxY, Math.max(-maxY, y + dy));
+
+    // Smoothed against the running velocity rather than replaced outright
+    // by this single event's delta, a lone fast pointermove tick (common
+    // right before release) would otherwise read as a wildly overstated
+    // throw speed.
+    vx = vx * 0.7 + ((dx / dt) * 16) * 0.3;
+    vy = vy * 0.7 + ((dy / dt) * 16) * 0.3;
+
+    render();
+
+    lastX = event.clientX;
+    lastY = event.clientY;
+    lastT = now;
+  }
+
+  function onPointerUp(event: PointerEvent) {
+    if (!dragging) return;
+    dragging = false;
+    try {
+      phone.releasePointerCapture(event.pointerId);
+    } catch {
+      // Capture can already be gone (e.g. pointercancel fired first), the
+      // release call is just cleanup and safe to skip if so.
+    }
+    if (rafId === null) rafId = requestAnimationFrame(step);
+  }
+
+  phone.addEventListener('pointerdown', onPointerDown);
+  phone.addEventListener('pointermove', onPointerMove);
+  phone.addEventListener('pointerup', onPointerUp);
+  phone.addEventListener('pointercancel', onPointerUp);
+
+  return {
+    // Called every time this card's modal opens (see expand() below): a
+    // real thrown object doesn't remember where it landed once you close
+    // and reopen the drawer it's sitting in, and without this it could
+    // reopen mid-bounce or shoved into a corner from last time.
+    reset() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      dragging = false;
+      x = 0;
+      y = 0;
+      vx = 0;
+      vy = 0;
+      phone.style.transform = 'translate(-50%, -50%)';
+    },
+  };
+}
+
 function initExpandableGrids() {
   // Shared modal backdrop, created once and reused by every expand-capable
   // grid on the page: only one card can ever be open at a time, so there's
@@ -241,6 +412,23 @@ function initExpandableGrids() {
     const prevBtn = grid.querySelector<HTMLButtonElement>('[data-carousel-prev]');
     const nextBtn = grid.querySelector<HTMLButtonElement>('[data-carousel-next]');
     if (!defaultSlot) return;
+
+    // Project cards only (Career's stage-media has no .phone-mock at all,
+    // this map just stays empty for that grid): each card's phone gets its
+    // own independent physics state, keyed by slug so expand() can reset
+    // the right one. display: none on mobile (see .phone-mock in
+    // global.css) means these listeners simply never fire there, no
+    // separate width check needed to keep this desktop-only.
+    const phoneHandles = new Map<string, ReturnType<typeof initPhoneDrag>>();
+    if (sectionId === 'project') {
+      cards.forEach((card) => {
+        const stageMedia = card.querySelector<HTMLElement>('.stage-media');
+        const phone = card.querySelector<HTMLElement>('[data-phone-drag]');
+        if (stageMedia && phone) {
+          phoneHandles.set(card.dataset.slug ?? '', initPhoneDrag(phone, stageMedia));
+        }
+      });
+    }
 
     // Sections with a horizontal card carousel (data-hscroll) pin in place
     // for exactly the scroll distance the row needs to fully translate, so
@@ -508,6 +696,21 @@ function initExpandableGrids() {
       }
 
       syncLabels(slug);
+      // New card, fresh scrollTop (0), and its own content length, both of
+      // which the fade in global.css depends on, has to be re-checked here
+      // rather than waiting for the first scroll (which may never come if
+      // the card doesn't overflow, in which case no fade should show at
+      // all, or the visitor never scrolls it despite it overflowing, in
+      // which case the fade needs to already be showing as the hint that
+      // prompts the scroll in the first place).
+      const openDetail = card.querySelector<HTMLElement>('.card-detail');
+      if (openDetail) updateCardFade(openDetail);
+      // Same reasoning as the fade above: a real thrown phone doesn't
+      // remember its last position across closing and reopening the
+      // drawer it lives in, reset it to centered every time this card
+      // opens. A no-op for Career (phoneHandles is empty there) and for
+      // any Project card that isn't the one being opened.
+      phoneHandles.get(slug)?.reset();
     }
 
     labels.forEach((label) => {
@@ -557,6 +760,28 @@ function initExpandableGrids() {
           expand(card.dataset.slug ?? '');
         }
       });
+      // Attached once here regardless of open/closed state (reparenting to
+      // document.body on open doesn't detach listeners, they follow the
+      // node), rather than re-attaching on every expand(): simpler, and a
+      // scroll event genuinely can't fire while the card is hidden/closed
+      // anyway, so there's no real cost to leaving it always-on.
+      const detail = card.querySelector<HTMLElement>('.card-detail');
+      if (detail) {
+        detail.addEventListener('scroll', () => updateCardFade(detail), { passive: true });
+      }
+    });
+
+    // Resize can change whether a card's content overflows at all (a
+    // narrower/shorter modal fits less), so the currently-open card (if
+    // any) needs its fade re-evaluated too, not just re-checked on its next
+    // scroll. Debounced to match every other resize listener in this file.
+    let fadeResizeTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener('resize', () => {
+      clearTimeout(fadeResizeTimer);
+      fadeResizeTimer = setTimeout(() => {
+        const openDetail = openCard?.querySelector<HTMLElement>('.card-detail');
+        if (openDetail) updateCardFade(openDetail);
+      }, 200);
     });
 
     grid.querySelectorAll<HTMLElement>('[data-expand-back]').forEach((btn) => {

@@ -81,19 +81,33 @@ import { projects } from '../data/projects';
               </div>
 
               <div class="stage-media">
-                {/* Mobile uses the same card-face ("Fr") photo as the
-                    collapsed view instead of the dedicated stage ("In")
-                    photo, per explicit instruction. Two <img> tags
-                    swapped by breakpoint rather than one src, since
-                    Astro/CSS has no way to pick a different bitmap per
-                    media query on a single <img>. */}
-                <img
-                  src={project.stageImage ?? project.image}
-                  alt={`${project.name} preview`}
-                  loading="lazy"
-                  decoding="async"
-                  class="hidden h-full w-full object-cover md:block"
-                />
+                {/* Desktop only: the "In" photo sits inside a draggable,
+                    throwable phone mockup (initPhoneDrag() in motion.ts)
+                    instead of a plain image, real pointer-tracked velocity
+                    and bounce physics within this box. Mobile keeps the
+                    original plain-image treatment entirely untouched (its
+                    own separate <img> below, per explicit instruction not
+                    to change anything there), it uses the card-face ("Fr")
+                    photo instead of the dedicated stage ("In") one, same
+                    as it always has. */}
+                <div
+                  class="phone-mock hidden md:flex"
+                  data-phone-drag
+                  data-expand-ignore
+                  tabindex="0"
+                  role="img"
+                  aria-label={`${project.name} preview, drag to move`}
+                >
+                  <div class="phone-mock-notch"></div>
+                  <img
+                    src={project.stageImage ?? project.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable="false"
+                    class="h-full w-full object-cover"
+                  />
+                </div>
                 <img
                   src={project.cardImage ?? project.image}
                   alt={`${project.name} preview`}

@@ -507,6 +507,34 @@ body {
   scrollbar-width: none;
 }
 
+/* Fade the top and/or bottom edge of the scrollable text as a hint that
+   there's more content past it, now that the scrollbar itself is hidden
+   (see above) and there's otherwise no visual cue at all that a card's
+   text got cut off by the box rather than genuinely ending there. Driven
+   by data-fade-top/data-fade-bottom, toggled from JS (updateCardFade() in
+   motion.ts) on scroll/open/resize based on the REAL scrollTop/scrollHeight
+   at that moment, not applied unconditionally: a card whose content
+   already fits with no overflow shouldn't fade its own last line for no
+   reason, and a card scrolled all the way to one edge shouldn't keep
+   hinting a direction that has nothing left in it. mask-image (not a
+   gradient overlay element) so the actual text beneath fades, not just a
+   tint on top of it, and it works over the theme's own dark background
+   without needing to match its exact color. */
+.expand-card[data-modal-open="true"] .card-detail[data-fade-top="true"][data-fade-bottom="true"] {
+  mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
+.expand-card[data-modal-open="true"] .card-detail[data-fade-top="true"]:not([data-fade-bottom="true"]) {
+  mask-image: linear-gradient(to bottom, transparent, black 24px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 24px);
+}
+
+.expand-card[data-modal-open="true"] .card-detail[data-fade-bottom="true"]:not([data-fade-top="true"]) {
+  mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent);
+}
+
 .expand-card[data-modal-open="true"] .card-detail::-webkit-scrollbar {
   display: none;
 }
@@ -764,4 +792,63 @@ body {
      than intended if those interact in a way that isn't airtight at some
      viewport size, this clips it outright regardless. */
   overflow: hidden;
+  /* Containing block for .phone-mock's position: absolute below (Projects
+     only, desktop only), so its drag physics bounce within THIS box's own
+     bounds rather than the whole fixed-position modal card. Harmless for
+     Career, which has no .phone-mock descendant at all. */
+  position: relative;
+}
+
+/* Draggable, throwable phone frame around the Project modal's "In" image
+   (Projects.astro, desktop only, see initPhoneDrag() in motion.ts for the
+   actual pointer-tracked velocity/bounce physics, this is just its look and
+   its rest position). Centered by default via the translate(-50%, -50%)
+   half of its transform, initPhoneDrag() appends an additional pixel
+   offset (and a velocity-driven rotation) on top of that same transform
+   while dragging/settling, never replaces it, so the centered rest state
+   stays the anchor to return to. Sized smaller than its .stage-media
+   container on purpose, real empty margin around it is what gives the
+   physics somewhere to actually move and bounce within, a phone sized to
+   fill the box edge to edge would have nowhere to go. Same 414/896 ratio
+   the plain stage-media image uses elsewhere (Career's own modal, this
+   project's mobile view), so the same source photos still compose/crop
+   the same way here. */
+.phone-mock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72%;
+  aspect-ratio: 414 / 896;
+  transform: translate(-50%, -50%);
+  flex-direction: column;
+  border-radius: 1.5rem;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  background: #0a0a0a;
+  padding: 6px;
+  cursor: grab;
+  touch-action: none;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  will-change: transform;
+}
+
+.phone-mock:active {
+  cursor: grabbing;
+}
+
+.phone-mock img {
+  border-radius: 1.15rem;
+  pointer-events: none;
+}
+
+.phone-mock-notch {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: 16px;
+  background: #0a0a0a;
+  border-radius: 0 0 0.65rem 0.65rem;
+  z-index: 2;
 }
