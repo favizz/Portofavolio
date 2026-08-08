@@ -13,7 +13,7 @@ export const experience = [
     stageImage: '/images/career/siemens-inside.webp',
     tags: ['Laravel', 'PHP'],
     bullets: [
-      'Modified and maintained a Laravel-based factory visitor and quality access logging system used daily by 200+ personnel',
+      'Modified and maintained a Laravel-based factory visitor and quality access logging system used daily by <strong>200+ personnel</strong>',
       'Troubleshot production devices (marking systems, tablets, shared Excel logs) to keep systems stable across the factory network and VPN',
     ],
   },
@@ -31,8 +31,8 @@ export const experience = [
     stageImage: '/images/career/toyota-astra-motor-inside.webp',
     tags: [],
     bullets: [
-      'Designed and deployed an internal asset management system tracking 7,000+ enterprise IT assets',
-      'Built modules for asset movement, audit workflows, and inventory monitoring, replacing manual tracking',
+      'Designed and deployed an internal asset management system tracking <strong>7,000+ enterprise IT assets</strong>',
+      'Built modules for asset movement, audit workflows, and inventory monitoring, <strong>replacing manual tracking</strong>',
       'Authored system design and deployment documentation, coordinating implementation across teams',
     ],
   },
@@ -50,8 +50,8 @@ export const experience = [
     stageImage: '/images/career/tmmin-inside.webp',
     tags: ['Python'],
     bullets: [
-      'Built a Python pipeline to extract and reconcile 8,000+ customs and invoice records from PDFs',
-      'Automated OCR-based data extraction and validation, cutting manual reconciliation effort by 70%+',
+      'Built a Python pipeline to extract and reconcile <strong>8,000+ customs and invoice records</strong> from PDFs',
+      'Automated OCR-based data extraction and validation, <strong>cutting manual reconciliation effort by 70%+</strong>',
       'Implemented batch processing to improve consistency and audit readiness of regulatory reporting',
     ],
   },
@@ -105,7 +105,7 @@ export const experience = [
     tags: [],
     relatedProjectSlug: 'netflow',
     bullets: [
-      'GPA 3.62 out of 4.00',
+      'GPA <strong>3.62</strong> out of 4.00',
       'Coursework: Algorithms & Data Structures, Database Systems, Software Engineering, Information Security, Data Analytics, and Artificial Intelligence',
     ],
   },

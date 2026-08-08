@@ -1081,6 +1081,21 @@ function initHeroFlip() {
       if (name) {
         name.style.position = 'relative';
         name.style.zIndex = '0';
+        // Same display fix scrubFlip applies internally before ITS OWN
+        // measurement (transform has no effect on display:inline, see the
+        // big comment on scrubFlip above), done here too so this "rest"
+        // measurement and scrubFlip's own "last" measurement read the
+        // element under the identical display mode. Skipping this once
+        // left them mismatched: display:inline's line-box height differs
+        // from display:inline-block's tight content height for a
+        // `leading-none` span, so `rest.height` (captured before this fix)
+        // came out taller than `last.height` (captured after it, inside
+        // scrubFlip), and scrubFlip's scaleY = first.height/last.height
+        // came out larger than scaleX, a real vertical stretch on every
+        // letter that had nothing to do with letter-spacing at all.
+        if (getComputedStyle(name).display === 'inline') {
+          name.style.display = 'inline-block';
+        }
         const rest = name.getBoundingClientRect();
         const restSize = parseFloat(getComputedStyle(name).fontSize);
         name.style.fontSize = '100px';
@@ -1089,6 +1104,15 @@ function initHeroFlip() {
         // only block/inline-block boxes report them consistently.
         const naturalRect = name.getBoundingClientRect();
         const naturalWidth = naturalRect.width;
+        // How much total width one px of letter-spacing adds, measured at
+        // this same 100px reference size. This is really just the letter's
+        // gap COUNT (an integer, "FAVIAN" has 5 gaps between 6 letters),
+        // and stays constant regardless of font size, letter-spacing is an
+        // absolute px amount added per gap, not a proportional one, so
+        // measuring it once here is enough to reuse at any font size below.
+        name.style.letterSpacing = '20px';
+        const gapsPerPx = (name.getBoundingClientRect().width - naturalWidth) / 20;
+        name.style.letterSpacing = '0px';
         name.style.fontSize = `${restSize}px`;
         if (naturalWidth) {
           const widthFitSize = ((vw - gap * 2) / naturalWidth) * 100;
@@ -1099,15 +1123,44 @@ function initHeroFlip() {
           const heightFitSize = (availableNameHeight / rest.height) * restSize;
           const heroSize = Math.max(restSize, Math.min(widthFitSize, heightFitSize));
           const scale = heroSize / restSize;
-          const heroWidth = rest.width * scale;
+          // heroWidthFromFont is what the height-constrained font size
+          // alone reaches, on most viewports that falls short of the full
+          // available width (visible side gaps either side of FAVIAN).
+          // Rather than growing the font size further (blocked by the
+          // height budget) or scaling width and height by different
+          // factors (stretches each letter's own shape, explicitly not
+          // wanted here), the remainder is made up with letter-spacing:
+          // real air between characters, glyphs stay their natural shape.
+          // Passed to scrubFlip as a REST-size px value, not hero-size,
+          // since it's scrubbed as a plain CSS property on the same
+          // element scrubFlip's transform: scale() applies to, so it's
+          // carried up to full Hero size by that same transform, same as
+          // every other pixel of this box, no separate hero/rest unit
+          // conversion needed beyond dividing by `scale` once here.
+          const heroWidthFromFont = rest.width * scale;
+          const targetWidth = vw - gap * 2;
+          const shortfall = Math.max(0, targetWidth - heroWidthFromFont);
+          const heroLetterSpacing = gapsPerPx > 0 ? shortfall / gapsPerPx / scale : 0;
+          const heroWidth = heroWidthFromFont + shortfall;
           const heroHeight = rest.height * scale;
+          // width here stays heroWidthFromFont (not heroWidth), so
+          // scrubFlip's own scaleX and scaleY come out equal (both
+          // `scale`), letter-spacing handles the rest of the width
+          // separately below rather than through this FLIP's scale.
           scrubFlip(name, {
             left: vw / 2 - heroWidth / 2,
             top: nameTop,
-            width: heroWidth,
+            width: heroWidthFromFont,
             height: heroHeight,
           });
           scrubColor(name);
+          if (heroLetterSpacing > 0) {
+            gsap.fromTo(
+              name,
+              { letterSpacing: `${heroLetterSpacing}px` },
+              { letterSpacing: '0px', ease: 'none', scrollTrigger: heroTrigger() },
+            );
+          }
         }
       }
 

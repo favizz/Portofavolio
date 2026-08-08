@@ -427,8 +427,14 @@ body {
   width: min(90vw, 800px) !important;
   max-width: none !important;
   max-height: 85vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* No overflow-y here on purpose: this used to be the scroll container
+     for the whole card (image and text scrolling together), which meant
+     the image scrolled away with the text and the native scrollbar sat
+     on the OUTER card's edge, easy to miss and requiring the cursor to
+     land right on that thin strip. .card-detail below is now its own
+     independent scroll region instead, .stage-media never scrolls at
+     all, and this outer box just clips via the base .expand-card
+     `overflow: hidden` rule (a static bound, never itself scrollable). */
   cursor: default;
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--color-primary-deep) 92%, transparent);
@@ -445,14 +451,6 @@ body {
        is what was reported from a real device. */
     top: 7.5dvh;
     max-height: 88dvh;
-    /* Never scrollable on mobile, per explicit instruction: the image and
-       text below are sized to fit within this box instead (smaller
-       stage-media max-height, fluid/smaller card-detail text, see below),
-       so there's nothing left to scroll to in the normal case. Hidden,
-       not auto: if some unusually long real content ever did exceed this
-       box despite that, it clips rather than silently becoming
-       scrollable again. */
-    overflow-y: hidden;
   }
 }
 
@@ -490,6 +488,27 @@ body {
 
 .expand-card[data-modal-open="true"] .card-detail {
   flex: 1 1 auto;
+  /* Its own independent scroll region, on both layouts: on desktop's row
+     direction align-self: stretch (not the row's shared align-items, so
+     stage-media keeps its own natural aspect-ratio height instead of also
+     stretching) bounds card-detail's cross-axis (vertical) size to match
+     the image beside it; on mobile's column direction the existing flex:
+     1 1 auto above already bounds its main-axis (vertical) size to
+     whatever's left under stage-media. Either way, min-height: 0
+     overrides a flex item's default auto min-height (which otherwise lets
+     it grow taller than its box instead of scrolling, the classic
+     flexbox-overflow gotcha), and the scrollbar is hidden across engines
+     since a bare native one here read as visual clutter and effectively
+     required the cursor to land on that thin strip specifically, the
+     whole pane now responds to wheel/touch anywhere over it. */
+  align-self: stretch;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.expand-card[data-modal-open="true"] .card-detail::-webkit-scrollbar {
+  display: none;
 }
 
 /* 767px, matching the md boundary the rest of the mobile/desktop system
@@ -511,14 +530,14 @@ body {
        square crop. max-height caps it by a screen PERCENTAGE rather
        than trusting the aspect-ratio alone: at mobile modal widths,
        414/896 alone would compute a height taller than the modal's own
-       88vh cap, so the photo could crowd out all of card-detail's own
+       88vh cap, so the photo would crowd out all of card-detail's own
        text. object-cover still fills this shorter box cleanly, it just
-       crops a bit more. Reduced from 50vh/50dvh: since the modal can no
-       longer scroll on mobile (see above), the image's old budget left
-       too little room for card-detail's own (variable-length, real)
-       text content to ever fit without clipping, this and the smaller
-       card-detail text/padding below are what actually makes "never
-       scrollable" hold up in practice. */
+       crops a bit more. Card-detail scrolls independently within
+       whatever's left under this cap (see its own overflow-y: auto
+       above), the image itself never scrolls or gets pushed off-screen
+       by long text, keeping this fixed and modest is what keeps the text
+       pane's own starting position high enough to read without first
+       scrolling past a nearly-full-screen photo. */
     max-height: 32vh;
     max-height: 32dvh;
   }

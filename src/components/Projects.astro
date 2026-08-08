@@ -109,10 +109,10 @@ import { projects } from '../data/projects';
                 </span>
                 <h3 class="mt-1 font-display text-3xl font-semibold text-white">{project.name}</h3>
                 <span class="mt-1 text-sm text-text-muted">{project.period}</span>
-                <p class="mt-4 max-w-xl text-base text-text-muted">{project.description}</p>
+                <p class="mt-4 max-w-xl text-base text-text-muted" set:html={project.description} />
                 <ul class="mt-3 max-w-md list-disc space-y-1 pl-5 text-sm text-text-muted">
                   {project.highlights.map((highlight) => (
-                    <li>{highlight}</li>
+                    <li set:html={highlight} />
                   ))}
                 </ul>
                 <div class="mt-3 flex flex-wrap gap-2">

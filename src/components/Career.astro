@@ -166,7 +166,7 @@ const sortedExperience = [...experience].sort(
 
                   <ul class="mt-3 max-w-xl list-disc space-y-1 pl-5 text-base text-text-muted">
                     {job.bullets.map((bullet) => (
-                      <li>{bullet}</li>
+                      <li set:html={bullet} />
                     ))}
                   </ul>
 
