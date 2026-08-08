@@ -98,15 +98,24 @@ import { projects } from '../data/projects';
                   role="img"
                   aria-label={`${project.name} preview, drag to move`}
                 >
-                  <div class="phone-mock-notch"></div>
-                  <img
-                    src={project.stageImage ?? project.image}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    draggable="false"
-                    class="h-full w-full object-cover"
-                  />
+                  <div class="phone-mock-face">
+                    <div class="phone-mock-notch"></div>
+                    <img
+                      src={project.stageImage ?? project.image}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable="false"
+                      class="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div class="phone-mock-back">
+                    <div class="phone-mock-lens"></div>
+                  </div>
+                  <div class="phone-mock-edge phone-mock-edge-right"></div>
+                  <div class="phone-mock-edge phone-mock-edge-left"></div>
+                  <div class="phone-mock-edge phone-mock-edge-top"></div>
+                  <div class="phone-mock-edge phone-mock-edge-bottom"></div>
                 </div>
                 <img
                   src={project.cardImage ?? project.image}
@@ -117,7 +126,7 @@ import { projects } from '../data/projects';
                 />
               </div>
 
-              <div class="card-detail relative flex-1 p-6">
+              <div class="card-detail relative flex-1 p-6" data-lenis-prevent>
                 <span class="text-sm font-semibold uppercase tracking-wide text-accent">
                   {project.tag}
                 </span>

@@ -223,38 +223,198 @@ function updateCardFade(detail: HTMLElement) {
   detail.dataset.fadeBottom = String(hasOverflow && !atBottom);
 }
 
-// Real drag-and-throw physics for the .phone-mock element inside a Project
-// card's stage-media (Projects.astro, desktop only). Pointer Events (not
-// mouse/touch separately) with setPointerCapture, so a fast drag that
-// briefly leaves the element's own box mid-gesture keeps tracking correctly
-// instead of dropping the drag. `container` bounds the physics (real
-// clientWidth/height read fresh every call, not cached, so a resize or a
-// different card's own box size is always current): position is expressed
-// as a pixel offset from the element's own centered CSS rest position (see
-// .phone-mock's translate(-50%, -50%) in global.css), clamped to keep the
-// element's edges inside the container's edges rather than letting its
-// center reach them, which would let half the phone hang outside the box.
-// On release, velocity (a short rolling average of recent pointermove
-// deltas, not just the single last-pixel sample, which reads as noisy/
-// jittery for a "throw") carries into a friction + edge-bounce simulation
-// each animation frame until it settles below a small speed threshold.
-// Rotation is derived directly from current velocity every frame rather
-// than being its own separate physics variable, so it decays to 0 in
-// lockstep with the throw settling, no separate state to keep in sync.
+// Minimal quaternion math for the phone mockup's free-tumble rotation
+// below. Nothing elsewhere in this codebase does 3D math, and this is a
+// small, well-understood, self-contained set of operations (~80 lines),
+// not worth a dependency for. x/y/z/w throughout, w is the scalar part.
+type Quat = { x: number; y: number; z: number; w: number };
+
+function quatFromAxisAngle(axis: { x: number; y: number; z: number }, angleRad: number): Quat {
+  const len = Math.hypot(axis.x, axis.y, axis.z);
+  if (len < 1e-8) return { x: 0, y: 0, z: 0, w: 1 };
+  const half = angleRad / 2;
+  const s = Math.sin(half) / len;
+  return { x: axis.x * s, y: axis.y * s, z: axis.z * s, w: Math.cos(half) };
+}
+
+// Hamilton product. Order matters (quaternion multiplication doesn't
+// commute): quatMultiply(a, b) applies b first, then a, matching how CSS
+// itself composes rotateA() rotateB() (rightmost applies to the point
+// first), which is what quatFromEulerZXY below relies on to agree with an
+// equivalent CSS transform string.
+function quatMultiply(a: Quat, b: Quat): Quat {
+  return {
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+  };
+}
+
+function quatNormalize(q: Quat): Quat {
+  const len = Math.hypot(q.x, q.y, q.z, q.w) || 1;
+  return { x: q.x / len, y: q.y / len, z: q.z / len, w: q.w / len };
+}
+
+// Spherical linear interpolation, the correct way to blend two
+// orientations (a plain per-component lerp would speed up/slow down
+// unnaturally through the blend and can shrink the rotation). Used both
+// for the release-time "ease back toward rest" spring and would be the
+// right tool for any future orientation tween this element needs.
+function quatSlerp(a: Quat, b: Quat, t: number): Quat {
+  let { x: bx, y: by, z: bz, w: bw } = b;
+  let dot = a.x * bx + a.y * by + a.z * bz + a.w * bw;
+  // Quaternions q and -q represent the same rotation; picking the sign
+  // closer to `a` avoids interpolating the "long way around".
+  if (dot < 0) {
+    dot = -dot;
+    bx = -bx;
+    by = -by;
+    bz = -bz;
+    bw = -bw;
+  }
+  if (dot > 0.9995) {
+    // Nearly identical: linear blend is stable here and avoids dividing
+    // by the near-zero sin(theta0) the general case below needs.
+    return quatNormalize({
+      x: a.x + (bx - a.x) * t,
+      y: a.y + (by - a.y) * t,
+      z: a.z + (bz - a.z) * t,
+      w: a.w + (bw - a.w) * t,
+    });
+  }
+  const theta0 = Math.acos(dot);
+  const theta = theta0 * t;
+  const sinTheta0 = Math.sin(theta0);
+  const s0 = Math.cos(theta) - (dot * Math.sin(theta)) / sinTheta0;
+  const s1 = Math.sin(theta) / sinTheta0;
+  return { x: a.x * s0 + bx * s1, y: a.y * s0 + by * s1, z: a.z * s0 + bz * s1, w: a.w * s0 + bw * s1 };
+}
+
+// CSS matrix3d() is column-major (each group of 4 values is one COLUMN),
+// unlike the row-major convention most quaternion-to-matrix references
+// use, worth flagging since transposing these two by mistake is a classic
+// silent-bug spot: it still renders SOME rotation, just visibly the wrong
+// one, easy to mistake for a sign error elsewhere instead.
+function quatToMatrix3d(q: Quat): string {
+  const { x, y, z, w } = q;
+  const m00 = 1 - 2 * (y * y + z * z);
+  const m01 = 2 * (x * y - w * z);
+  const m02 = 2 * (x * z + w * y);
+  const m10 = 2 * (x * y + w * z);
+  const m11 = 1 - 2 * (x * x + z * z);
+  const m12 = 2 * (y * z - w * x);
+  const m20 = 2 * (x * z - w * y);
+  const m21 = 2 * (y * z + w * x);
+  const m22 = 1 - 2 * (x * x + y * y);
+  return `matrix3d(${m00},${m10},${m20},0,${m01},${m11},${m21},0,${m02},${m12},${m22},0,0,0,0,1)`;
+}
+
+// Builds a quaternion matching `transform: rotateZ(z) rotateX(x)
+// rotateY(y)`'s exact composition order, so PHONE_REST_QUAT (below) always
+// agrees with what that equivalent CSS string on .phone-mock in
+// global.css would render, confirmed live (matrix3d output compared
+// against the rotateZ/rotateX/rotateY it replaces) rather than assumed
+// from the math alone.
+function quatFromEulerZXY(zDeg: number, xDeg: number, yDeg: number): Quat {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const qz = quatFromAxisAngle({ x: 0, y: 0, z: 1 }, toRad(zDeg));
+  const qx = quatFromAxisAngle({ x: 1, y: 0, z: 0 }, toRad(xDeg));
+  const qy = quatFromAxisAngle({ x: 0, y: 1, z: 0 }, toRad(yDeg));
+  return quatNormalize(quatMultiply(quatMultiply(qz, qx), qy));
+}
+
+// The phone's resting pose as a quaternion, matching .phone-mock's own CSS
+// default (rotateZ(8deg) rotateX(-13deg) rotateY(-26deg): the north-west-
+// facing lean, tilted 15deg further upward/toward the viewer than the
+// original -28deg per explicit request, confirmed empirically against a
+// -43deg alternative, this direction is the one that reads as "more
+// upright/face-on" rather than "looking down at it more steeply").
+// Computed once at module load, shared by every card's own initPhoneDrag()
+// instance below, this is what "spring back to rest" and the idle float
+// both orbit around.
+const PHONE_REST_QUAT = quatFromEulerZXY(8, -13, -26);
+
+// Real drag-and-throw-and-tumble physics for the .phone-mock element
+// inside a Project card's stage-media (Projects.astro, desktop only).
+// Pointer Events (not mouse/touch separately) with setPointerCapture, so a
+// fast drag that briefly leaves the element's own box mid-gesture keeps
+// tracking correctly instead of dropping the drag.
+//
+// Position (x/y, pixel offset from the centered CSS rest position) is
+// UNCHANGED from the earlier flat-plane version: clamped to the
+// container's bounds while dragging, springs back toward 0 on release
+// (Hooke's-law term added to velocity before the usual friction), with an
+// edge-bounce clamp as a backstop for an unusually hard throw. See
+// bounds()/step()'s position half for the same logic as before.
+//
+// Rotation is a full free-tumble quaternion `q`, not a flat Z-axis spin:
+// dragging maps the pointer to a point on a virtual hemisphere centered on
+// the phone (the standard "arcball" technique, see arcballVec()), and each
+// frame's movement across that hemisphere becomes a real 3D rotation
+// (axis + angle) composed onto `q`, which is what makes tilting the phone
+// toward/away from the viewer, or all the way around to the back, actually
+// work correctly at any orientation with no gimbal lock, unlike
+// independently animating rotateX/rotateY/rotateZ would risk. On release,
+// the last bit of drag motion becomes an angular velocity that keeps
+// spinning `q` with its own friction, while a separate spring (a slerp
+// step toward PHONE_REST_QUAT every frame) continuously eases it back
+// toward the original pose, so it can be thrown/spun freely but always
+// ends up back home, same idea as the position spring, just rotational.
+// Once both position and rotation are fully settled, a lightweight
+// idle float (a slow sine bob + a small slow tilt) takes over until the
+// next grab, entirely within this same render()/rAF loop rather than a
+// second animation system (GSAP or otherwise) touching the same
+// transform, this codebase has hit that exact "two writers on one
+// property" bug before (see Side navigation's footer-morph notes in
+// dev/CLAUDE.md) and it's avoided here on purpose.
 function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
-  const FRICTION = 0.94;
-  const BOUNCE_DAMP = 0.55;
-  const SETTLE_SPEED = 0.04;
-  const MAX_ROTATION = 14;
+  const SPRING_K = 0.09;
+  const SPRING_FRICTION = 0.86;
+  const BOUNCE_DAMP = 0.5;
+  const SETTLE_SPEED = 0.05;
+  const SETTLE_DIST = 0.5;
+  // Real momentum-preserving drag interactions (GSAP's InertiaPlugin,
+  // Propeller.js's own rotation-drag library) use a friction value very
+  // close to 1, e.g. Propeller's own docs use 0.99 as their example, not
+  // ~0.9: at 0.9 the spin loses 10% of its speed every single frame, which
+  // stops within a handful of frames and reads as heavy/dead rather than
+  // something that was actually flicked. 0.96 is a middle ground, a real,
+  // visible coast without spinning indefinitely.
+  const ROT_FRICTION = 0.96;
+  const ROT_SPRING_T = 0.06;
+  const ROT_SETTLE_ANGLE = 0.01;
+  const ROT_SETTLE_SPEED = 0.002;
+  // Fixed radius for the arcball projection, deliberately NOT tied to the
+  // phone's own fluid on-screen size: this is the actual "how many pixels
+  // of drag equals how much rotation" sensitivity knob, a smaller value
+  // makes the same drag distance spin it further. Lowered from an initial
+  // 120 for the same "too heavy" reason as ROT_FRICTION above, needing a
+  // wide arc of pixels just to start noticeably rotating reads as
+  // sluggish/unresponsive, not light.
+  const ARC_R = 90;
 
   let x = 0;
   let y = 0;
   let vx = 0;
   let vy = 0;
+  let q: Quat = { ...PHONE_REST_QUAT };
+  let angVelAxis = { x: 0, y: 1, z: 0 };
+  let angVelAngle = 0;
+  let lastArcVec: { x: number; y: number; z: number } | null = null;
   let dragging = false;
+  let idle = false;
+  let idleT = 0;
   let lastX = 0;
   let lastY = 0;
   let lastT = 0;
+  // Same fix as the earlier flat-plane version relied on: fixed for the
+  // whole gesture, not recomputed from the live (and, during a drag,
+  // constantly changing) x/y position, otherwise the reference point
+  // would chase the pointer at the same rate the pointer moves and a
+  // smooth drag would barely register against it.
+  let grabCenterX = 0;
+  let grabCenterY = 0;
   let rafId: number | null = null;
 
   function bounds() {
@@ -263,17 +423,30 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
     return { maxX, maxY };
   }
 
+  function arcballVec(px: number, py: number) {
+    const nx = (px - grabCenterX) / ARC_R;
+    const ny = (py - grabCenterY) / ARC_R;
+    const d2 = nx * nx + ny * ny;
+    if (d2 > 1) {
+      const inv = 1 / Math.sqrt(d2);
+      return { x: nx * inv, y: ny * inv, z: 0 };
+    }
+    return { x: nx, y: ny, z: Math.sqrt(1 - d2) };
+  }
+
   function render() {
-    const rot = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, vx * 1.4));
-    phone.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) rotate(${rot}deg)`;
+    const bobY = idle ? Math.sin(idleT * 0.02) * 4 : 0;
+    phone.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y + bobY}px)) ${quatToMatrix3d(q)}`;
   }
 
   function step() {
     const { maxX, maxY } = bounds();
+    vx += -SPRING_K * x;
+    vy += -SPRING_K * y;
+    vx *= SPRING_FRICTION;
+    vy *= SPRING_FRICTION;
     x += vx;
     y += vy;
-    vx *= FRICTION;
-    vy *= FRICTION;
 
     if (x > maxX) {
       x = maxX;
@@ -290,22 +463,60 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
       vy = Math.abs(vy) * BOUNCE_DAMP;
     }
 
+    if (Math.abs(angVelAngle) > 1e-5) {
+      q = quatNormalize(quatMultiply(quatFromAxisAngle(angVelAxis, angVelAngle), q));
+      angVelAngle *= ROT_FRICTION;
+    }
+    q = quatSlerp(q, PHONE_REST_QUAT, ROT_SPRING_T);
+
     render();
 
-    if (Math.hypot(vx, vy) > SETTLE_SPEED) {
+    const rotDot = Math.min(
+      1,
+      Math.abs(q.x * PHONE_REST_QUAT.x + q.y * PHONE_REST_QUAT.y + q.z * PHONE_REST_QUAT.z + q.w * PHONE_REST_QUAT.w),
+    );
+    const rotAngleFromRest = 2 * Math.acos(rotDot);
+    const settled =
+      Math.hypot(vx, vy) < SETTLE_SPEED &&
+      Math.hypot(x, y) < SETTLE_DIST &&
+      Math.abs(angVelAngle) < ROT_SETTLE_SPEED &&
+      rotAngleFromRest < ROT_SETTLE_ANGLE;
+
+    if (!settled) {
       rafId = requestAnimationFrame(step);
     } else {
+      x = 0;
+      y = 0;
       vx = 0;
       vy = 0;
-      rafId = null;
+      angVelAngle = 0;
+      q = { ...PHONE_REST_QUAT };
+      render();
+      idle = true;
+      idleT = 0;
+      rafId = requestAnimationFrame(idleStep);
     }
+  }
+
+  // Runs indefinitely once settled, until the next pointerdown interrupts
+  // it (see onPointerDown, which sets idle = false and cancels this same
+  // rafId before starting a fresh drag from whatever the idle loop's
+  // CURRENT displayed orientation happens to be, so grabbing it mid-float
+  // never causes a visible jump).
+  function idleStep() {
+    idleT++;
+    render();
+    rafId = requestAnimationFrame(idleStep);
   }
 
   function onPointerDown(event: PointerEvent) {
     event.stopPropagation();
     dragging = true;
+    idle = false;
     vx = 0;
     vy = 0;
+    angVelAngle = 0;
+    lastArcVec = null;
     if (rafId !== null) {
       cancelAnimationFrame(rafId);
       rafId = null;
@@ -314,6 +525,10 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
     lastX = event.clientX;
     lastY = event.clientY;
     lastT = performance.now();
+    const containerRect = container.getBoundingClientRect();
+    grabCenterX = containerRect.left + containerRect.width / 2 + x;
+    grabCenterY = containerRect.top + containerRect.height / 2 + y;
+    lastArcVec = arcballVec(event.clientX, event.clientY);
   }
 
   function onPointerMove(event: PointerEvent) {
@@ -331,8 +546,39 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
     // by this single event's delta, a lone fast pointermove tick (common
     // right before release) would otherwise read as a wildly overstated
     // throw speed.
-    vx = vx * 0.7 + ((dx / dt) * 16) * 0.3;
-    vy = vy * 0.7 + ((dy / dt) * 16) * 0.3;
+    vx = vx * 0.7 + (dx / dt) * 16 * 0.3;
+    vy = vy * 0.7 + (dy / dt) * 16 * 0.3;
+
+    // The actual rotation: how far the pointer moved across the arcball
+    // hemisphere since last frame becomes a real 3D axis+angle, applied
+    // directly (so the phone visibly tumbles in real time as the drag
+    // moves, not just on release) and smoothed into a running angular
+    // velocity for release-time momentum.
+    const vec = arcballVec(event.clientX, event.clientY);
+    if (lastArcVec) {
+      const dot = Math.min(1, Math.max(-1, lastArcVec.x * vec.x + lastArcVec.y * vec.y + lastArcVec.z * vec.z));
+      const angle = Math.acos(dot);
+      if (angle > 1e-6) {
+        const axis = {
+          x: lastArcVec.y * vec.z - lastArcVec.z * vec.y,
+          y: lastArcVec.z * vec.x - lastArcVec.x * vec.z,
+          z: lastArcVec.x * vec.y - lastArcVec.y * vec.x,
+        };
+        const axisLen = Math.hypot(axis.x, axis.y, axis.z);
+        if (axisLen > 1e-8) {
+          const normAxis = { x: axis.x / axisLen, y: axis.y / axisLen, z: axis.z / axisLen };
+          q = quatNormalize(quatMultiply(quatFromAxisAngle(normAxis, angle), q));
+          angVelAxis = normAxis;
+          // Favors the most recent movement more than the old 0.7/0.3 blend
+          // did, part of the same "too heavy" fix as ROT_FRICTION/ARC_R
+          // above: over-smoothing the release velocity makes a fast flick
+          // register as slower than it actually was, compounding the
+          // sluggish feel.
+          angVelAngle = angVelAngle * 0.55 + angle * 0.45;
+        }
+      }
+    }
+    lastArcVec = vec;
 
     render();
 
@@ -358,22 +604,27 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
   phone.addEventListener('pointerup', onPointerUp);
   phone.addEventListener('pointercancel', onPointerUp);
 
+  render();
+
   return {
     // Called every time this card's modal opens (see expand() below): a
     // real thrown object doesn't remember where it landed once you close
     // and reopen the drawer it's sitting in, and without this it could
-    // reopen mid-bounce or shoved into a corner from last time.
+    // reopen mid-tumble or shoved into a corner from last time.
     reset() {
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
         rafId = null;
       }
       dragging = false;
+      idle = false;
       x = 0;
       y = 0;
       vx = 0;
       vy = 0;
-      phone.style.transform = 'translate(-50%, -50%)';
+      angVelAngle = 0;
+      q = { ...PHONE_REST_QUAT };
+      render();
     },
   };
 }

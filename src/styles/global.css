@@ -795,40 +795,46 @@ body {
   /* Containing block for .phone-mock's position: absolute below (Projects
      only, desktop only), so its drag physics bounce within THIS box's own
      bounds rather than the whole fixed-position modal card. Harmless for
-     Career, which has no .phone-mock descendant at all. */
+     Career, which has no .phone-mock descendant at all. perspective here
+     (not on .phone-mock itself) is what gives .phone-mock's 3D rotateX/Y
+     below real foreshortening/depth instead of flattening to a 2D skew,
+     it has to live on an ANCESTOR of the 3D-transformed element, not that
+     element itself. */
   position: relative;
+  perspective: 1000px;
 }
 
 /* Draggable, throwable phone frame around the Project modal's "In" image
-   (Projects.astro, desktop only, see initPhoneDrag() in motion.ts for the
-   actual pointer-tracked velocity/bounce physics, this is just its look and
-   its rest position). Centered by default via the translate(-50%, -50%)
-   half of its transform, initPhoneDrag() appends an additional pixel
-   offset (and a velocity-driven rotation) on top of that same transform
-   while dragging/settling, never replaces it, so the centered rest state
-   stays the anchor to return to. Sized smaller than its .stage-media
-   container on purpose, real empty margin around it is what gives the
-   physics somewhere to actually move and bounce within, a phone sized to
-   fill the box edge to edge would have nowhere to go. Same 414/896 ratio
-   the plain stage-media image uses elsewhere (Career's own modal, this
-   project's mobile view), so the same source photos still compose/crop
-   the same way here. */
+   (Projects.astro, desktop only). Free-tumble 3D object, not a flat card
+   or a fixed-angle pose: see initPhoneDrag() in motion.ts for the
+   quaternion-based arcball rotation (drag to tilt it in any direction,
+   including all the way around to the back), position spring-back, and
+   idle float, this element is purely its 3D positioning shell. No
+   overflow/background/border-radius here on purpose: those live on the
+   individual faces below, an overflow: hidden on a preserve-3d parent
+   clips in the PARENT's own flat 2D plane regardless of a child's Z
+   position, which would cut off a side edge or the back face the moment
+   either rotates into view, exactly the kind of subtle 3D-CSS gotcha this
+   split avoids.
+   The static transform below is only a pre-JS fallback: initPhoneDrag()'s
+   reset() sets the real rest transform (a quaternion converted to
+   matrix3d()) synchronously the moment a card opens, before the phone is
+   ever visible, same as it always has for position. Sized well under its
+   .stage-media container (68%, not just "smaller"), real empty margin
+   around it is what gives the physics somewhere to actually move/spin/
+   bounce within. Same 414/896 ratio the plain stage-media image uses
+   elsewhere (Career's own modal, this project's mobile view), so the same
+   source photos still compose/crop the same way here. */
 .phone-mock {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 72%;
+  width: 68%;
   aspect-ratio: 414 / 896;
-  transform: translate(-50%, -50%);
-  flex-direction: column;
-  border-radius: 1.5rem;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  background: #0a0a0a;
-  padding: 6px;
+  transform: translate(-50%, -50%) rotateZ(8deg) rotateX(-13deg) rotateY(-26deg);
+  transform-style: preserve-3d;
   cursor: grab;
   touch-action: none;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
   will-change: transform;
 }
 
@@ -836,19 +842,144 @@ body {
   cursor: grabbing;
 }
 
-.phone-mock img {
-  border-radius: 1.15rem;
+/* The visible front: bezel, screen image, notch. Pushed forward along Z by
+   half PHONE_DEPTH (5px, matching the constant of the same name in
+   initPhoneDrag()'s edge-face comment below) so .phone-mock-back can
+   occupy the opposite Z position instead of the two faces fighting for the
+   same spot. backface-visibility: hidden is what keeps this from rendering
+   (mirrored, wrong) when the phone has rotated around to show its back. */
+.phone-mock-face {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(5px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 1.5rem;
+  padding: 3px;
+  background: linear-gradient(145deg, #e2ddd2 0%, #8c8578 45%, #d6d0c3 100%);
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  backface-visibility: hidden;
+}
+
+.phone-mock-face img {
+  position: relative;
+  border-radius: 1.25rem;
   pointer-events: none;
+  z-index: 1;
+}
+
+/* The back: plain metal (same gradient family as the front, mirrored
+   direction) plus a small camera-lens circle, confirmed with the user
+   rather than assumed, real phones don't show a second copy of the screen
+   on their back. rotateY(180deg) turns it to face the opposite direction
+   from the front, translateZ(-5px) puts it at the opposite face of the
+   same PHONE_DEPTH the front uses, backface-visibility: hidden keeps IT
+   from rendering (mirrored) when what's actually facing the viewer is the
+   front instead. */
+.phone-mock-back {
+  position: absolute;
+  inset: 0;
+  transform: translateZ(-5px) rotateY(180deg);
+  border-radius: 1.5rem;
+  background: linear-gradient(145deg, #d6d0c3 0%, #8c8578 45%, #e2ddd2 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  backface-visibility: hidden;
+}
+
+.phone-mock-lens {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #3a3a3a, #050505 70%);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+/* Four thin side strips, one per edge, giving the object real thickness
+   from ANY viewing angle now that it can freely tumble (a single
+   fixed-angle sliver, this system's earlier approach, only ever looked
+   right from one privileged angle). Each strip is positioned flush
+   against its respective 2D edge of the UNROTATED phone (e.g. the right
+   strip sits at left: 100%, extending PHONE_DEPTH further right, never
+   rotated yet), then rotated 90deg around that shared boundary
+   (transform-origin sits exactly on the edge where strip meets phone) to
+   swing it perpendicular, facing outward. This avoids ever needing
+   translateZ(halfWidth): .phone-mock's own width is a fluid percentage of
+   a responsive container, and translateZ requires a real length, not a
+   percentage, per the CSS spec, so there's no single fixed px value that
+   would stay geometrically correct at every viewport width. Rotating
+   around a shared 2D edge sidesteps that entirely, the strip's own
+   PHONE_DEPTH thickness is the only fixed-px value involved, and how
+   thick a stylized mockup reads as is reasonably viewport-independent.
+   Colored as a darker slice of the same metal tones the faces use, so it
+   reads as one continuous object rather than a separately-colored add-on.
+   Each strip is inset ~22px from BOTH its own ends (matching the faces'
+   1.5rem/24px border-radius) rather than running the full 100% length: a
+   flat rectangular strip has hard 90deg corners, but the face/back it
+   meets have ROUNDED ones, so a full-length strip's sharp corner poked out
+   past the rounded silhouette as a small dark triangular spike right where
+   two strips should have met, a real reported bug, not a hypothetical.
+   Stopping short of the curve (and rounding the strip's own two outer
+   corners to match) means neither strip tries to occupy the curved corner
+   region at all, letting the face/back's own rounding read as the corner
+   instead of a mismatched straight edge fighting it. */
+.phone-mock-edge {
+  position: absolute;
+  background: linear-gradient(180deg, #b9b2a4, #6b655a 50%, #b9b2a4);
+  backface-visibility: hidden;
+}
+
+.phone-mock-edge-right {
+  top: 22px;
+  left: 100%;
+  width: 10px;
+  height: calc(100% - 44px);
+  border-radius: 0 6px 6px 0;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+}
+
+.phone-mock-edge-left {
+  top: 22px;
+  right: 100%;
+  width: 10px;
+  height: calc(100% - 44px);
+  border-radius: 6px 0 0 6px;
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+}
+
+.phone-mock-edge-top {
+  left: 22px;
+  bottom: 100%;
+  width: calc(100% - 44px);
+  height: 10px;
+  border-radius: 6px 6px 0 0;
+  transform-origin: center bottom;
+  transform: rotateX(90deg);
+}
+
+.phone-mock-edge-bottom {
+  left: 22px;
+  top: 100%;
+  width: calc(100% - 44px);
+  height: 10px;
+  border-radius: 0 0 6px 6px;
+  transform-origin: center top;
+  transform: rotateX(-90deg);
 }
 
 .phone-mock-notch {
   position: absolute;
-  top: 6px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 30%;
-  height: 16px;
-  background: #0a0a0a;
-  border-radius: 0 0 0.65rem 0.65rem;
+  width: 34%;
+  height: 20px;
+  background: #050505;
+  border-radius: 999px;
   z-index: 2;
 }

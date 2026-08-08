@@ -8,12 +8,13 @@ export const projects = [
     cardImage: '/images/projects/netflow-front.webp',
     stageImage: '/images/projects/netflow-inside.webp',
     description:
-      'A NestJS + MySQL backend streaming live MQTT telemetry from <strong>2,444+ smart meters</strong> into prepaid token billing.',
+      'A NestJS + MySQL backend streaming live MQTT telemetry from <strong>2,444+ smart meters</strong> into prepaid token billing, plus the two React frontends (building-manager dashboard, resident web app) that consume it.',
     highlights: [
-      '<strong>12-detector anomaly engine</strong> (tamper, reverse-flow, sensor-fault), hardened by <strong>80+ Jest tests</strong>',
+      '<strong>13-detector anomaly engine</strong> (backflow, tamper, sensor faults, MCB trips, and more), hardened by <strong>80+ Jest tests</strong>',
       'Multi-tenant access secured with Google OAuth 2.0, JWT, and RBAC across buildings',
+      'Background job queue (BullMQ/Redis) fans out OTA firmware updates and notification delivery',
     ],
-    tags: ['NestJS', 'MySQL', 'MQTT', 'JWT'],
+    tags: ['NestJS', 'TypeScript', 'React', 'MySQL', 'Redis', 'MQTT', 'JWT'],
     url: 'https://netflow-demo.vercel.app/',
   },
   {
