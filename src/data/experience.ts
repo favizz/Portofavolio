@@ -1,3 +1,5 @@
+import { facts } from './facts';
+
 export const experience = [
   {
     slug: 'siemens',
@@ -92,7 +94,7 @@ export const experience = [
   },
   {
     slug: 'itb',
-    company: 'Bandung Institute of Technology (ITB)',
+    company: facts.education.institution,
     short: 'ITB',
     companyNote: '#1 STEM university in Indonesia',
     role: 'Bachelor of Information Systems and Technology',

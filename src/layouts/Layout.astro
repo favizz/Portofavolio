@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import { facts } from '../data/facts';
+import { socials } from '../data/socials';
 
 interface Props {
   title?: string;
@@ -7,8 +9,8 @@ interface Props {
 }
 
 const {
-  title = 'Favian Izza | Software Engineer Portfolio - Full-Stack & IoT',
-  description = 'Favian Izza Diasputra, an Information Systems & Technology graduate from ITB, with software engineering internship experience at two leading manufacturing companies.',
+  title = facts.siteTitle,
+  description = `${facts.fullName}, an ${facts.bio.prefix} ${facts.bio.emphasis} ${facts.bio.suffix}`,
 } = Astro.props;
 
 // Astro.site comes from the `site` config in astro.config.mjs, the single
@@ -22,20 +24,14 @@ const ogImageURL = new URL('/og-image.png', Astro.site);
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Person',
-  name: 'Favian Izza Diasputra',
+  name: facts.fullName,
   url: Astro.site?.toString(),
-  jobTitle: 'Software Engineer',
-  email: 'mailto:izza.diasputra10@gmail.com',
-  sameAs: [
-    'https://github.com/IlllIllIIIlIlIll',
-    'https://www.linkedin.com/in/favianizza/',
-    'https://www.instagram.com/favianizza/',
-    'https://www.facebook.com/fvniz',
-    'https://x.com/fvniz',
-  ],
+  jobTitle: facts.jobTitle,
+  email: `mailto:${facts.email}`,
+  sameAs: socials.map((social) => social.url),
   alumniOf: {
     '@type': 'CollegeOrUniversity',
-    name: 'Bandung Institute of Technology (ITB)',
+    name: facts.education.institution,
   },
 };
 ---

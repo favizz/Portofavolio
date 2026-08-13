@@ -3,6 +3,7 @@ import { projects } from '../data/projects';
 import { experience } from '../data/experience';
 import { certifications } from '../data/certifications';
 import { achievements } from '../data/achievements';
+import { facts } from '../data/facts';
 
 const links = [
   { id: 'career', label: 'Career' },
@@ -32,14 +33,14 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
   aria-label="Section navigation"
 >
   <div class="nav-panel rounded-xl px-4 py-2" data-panel>
-    <span class="font-display text-base font-bold uppercase leading-none text-black" data-morph="name">Favian</span>
+    <span class="font-display text-base font-bold uppercase leading-none text-black" data-morph="name">{facts.firstName}</span>
     <p class="mt-1 text-[11px] leading-snug text-black/70" data-morph="desc">
-      {`Information Systems & Technology graduate from ITB, with `}
+      {`${facts.bio.prefix} `}
       <br />
-      <span class="desc-emphasis">software engineering</span>
+      <span class="desc-emphasis">{facts.bio.emphasis}</span>
       {` `}
       <br />
-      {`internship experience at two leading manufacturing companies.`}
+      {facts.bio.suffix}
     </p>
   </div>
 
@@ -95,8 +96,8 @@ const companies = experience.map((job) => ({ name: job.company, logo: job.logo }
     <button
       type="button"
       data-copy-email
-      data-user="izza.diasputra10"
-      data-domain="gmail.com"
+      data-user={facts.email.split('@')[0]}
+      data-domain={facts.email.split('@')[1]}
       class="btn-interactive inline-block text-left text-xs font-medium text-black underline decoration-black/30 underline-offset-2 hover:decoration-black"
       title="Click to copy"
     ></button>

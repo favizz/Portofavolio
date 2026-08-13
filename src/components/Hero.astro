@@ -3,6 +3,7 @@ import { projects } from '../data/projects';
 import { experience } from '../data/experience';
 import { certifications } from '../data/certifications';
 import { achievements } from '../data/achievements';
+import { facts } from '../data/facts';
 
 const realProjects = projects.filter((p) => !('dummy' in p && p.dummy));
 const realCerts = certifications.filter((c) => !('dummy' in c && c.dummy));
@@ -17,7 +18,7 @@ const mobileStats = [
 
 <section id="home" class="section hero-section overflow-hidden">
   <div class="hero-photo-fixed hidden md:block" data-hero-photo>
-    <img src="/images/profile-cutout.webp" alt="Portrait of Favian Izza" />
+    <img src="/images/profile-cutout.webp" alt={`Portrait of ${facts.displayName}`} />
   </div>
 
   <!-- Mobile only (md:hidden): the desktop Hero above is the SideNav's own
@@ -29,15 +30,19 @@ const mobileStats = [
        block element beneath everything else. -->
   <div class="mobile-hero">
     <p class="mobile-hero-eyebrow reveal" data-reveal>Home</p>
-    <h1 class="mobile-hero-heading reveal" data-reveal>FAVIAN</h1>
+    <h1 class="mobile-hero-heading reveal" data-reveal>{facts.heroWord}</h1>
     <div class="mobile-hero-body reveal" data-reveal>
       <p class="mobile-hero-bio">
-        {`Information Systems & Technology graduate from ITB, with   `}
-        <span class="desc-emphasis">software engineering</span>
-        {`   internship experience at two leading manufacturing companies.`}
+        {`${facts.bio.prefix}   `}
+        <span class="desc-emphasis">{facts.bio.emphasis}</span>
+        {`   ${facts.bio.suffix}`}
       </p>
     </div>
-    <div class="mobile-hero-stats reveal" data-reveal>
+    <div
+      class="mobile-hero-stats reveal"
+      data-reveal
+      style={`--stat-count: ${mobileStats.length}`}
+    >
       {
         mobileStats.map((stat) => (
           <div class="mobile-stat">
@@ -49,7 +54,7 @@ const mobileStats = [
     </div>
     <img
       src="/images/profile-cutout.webp"
-      alt="Portrait of Favian Izza"
+      alt={`Portrait of ${facts.displayName}`}
       class="mobile-hero-photo reveal"
       data-reveal
     />
@@ -224,7 +229,12 @@ const mobileStats = [
 
   .mobile-hero-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* Column count driven by the actual rendered stat count (--stat-count,
+       set inline from mobileStats.length above) rather than a hardcoded
+       4, so this keeps adapting correctly if a stat category is ever
+       added or removed instead of silently squeezing/stretching a
+       mismatched number of tiles into a fixed 4-column grid. */
+    grid-template-columns: repeat(var(--stat-count, 4), 1fr);
     gap: 0.5rem;
   }
 

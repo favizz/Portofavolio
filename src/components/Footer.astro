@@ -1,5 +1,6 @@
 ---
 import { socials } from '../data/socials';
+import { facts } from '../data/facts';
 
 const links = [
   { id: 'home', label: 'Home' },
@@ -17,11 +18,11 @@ const year = new Date().getFullYear();
 <footer class="relative border-t border-primary-light/10 bg-bg/60 px-6 py-12 md:mt-32 md:px-10">
   <div class="mx-auto grid w-full gap-10 text-left sm:grid-cols-2 md:grid-cols-3">
     <div class="reveal" data-reveal>
-      <a href="#home" class="font-display text-xl font-bold text-white">favian izza.</a>
+      <a href="#home" class="font-display text-xl font-bold text-white">{facts.wordmark}</a>
       <p class="mt-3 max-w-sm text-sm text-text-muted">
-        {`Information Systems & Technology graduate from ITB, with `}
-        <span class="desc-emphasis">software engineering</span>
-        {` internship experience at two leading manufacturing companies.`}
+        {`${facts.bio.prefix} `}
+        <span class="desc-emphasis">{facts.bio.emphasis}</span>
+        {` ${facts.bio.suffix}`}
       </p>
     </div>
 
@@ -47,8 +48,8 @@ const year = new Date().getFullYear();
       <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Connect</h3>
       <div class="mt-4 flex flex-wrap gap-3">
         <a
-          data-mailto-user="izza.diasputra10"
-          data-mailto-domain="gmail.com"
+          data-mailto-user={facts.email.split('@')[0]}
+          data-mailto-domain={facts.email.split('@')[1]}
           aria-label="Email"
           class="btn-interactive flex h-10 w-10 items-center justify-center rounded-full bg-primary-deep text-primary-light hover:text-white"
         >
@@ -73,7 +74,7 @@ const year = new Date().getFullYear();
         }
       </div>
       <a
-        href="/cv/Favian-Izza-CV.pdf"
+        href={facts.cvUrl}
         target="_blank"
         rel="noreferrer"
         download
@@ -87,7 +88,7 @@ const year = new Date().getFullYear();
   <div
     class="mx-auto mt-10 flex w-full flex-col items-center gap-2 border-t border-primary-light/10 pt-6 text-center text-xs text-text-muted sm:flex-row sm:justify-between sm:text-left"
   >
-    <p>&copy; {year} Favian Izza. All rights reserved.</p>
-    <p>Designed and developed by Favian Izza.</p>
+    <p>&copy; {year} {facts.displayName}. All rights reserved.</p>
+    <p>Designed and developed by {facts.displayName}.</p>
   </div>
 </footer>

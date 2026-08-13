@@ -483,6 +483,21 @@ body {
   min-width: 220px;
   max-width: 340px;
   aspect-ratio: 414 / 896;
+  /* Caps the ratio-driven height at the same viewport-relative bound the
+     modal itself is capped by (max-height: 85vh above): at short viewport
+     heights, the 414/896 ratio alone can compute a height TALLER than
+     that cap, and since a percentage max-height wouldn't resolve here
+     (.expand-card only sets max-height, not an explicit height, so it has
+     no definite height for a percentage child to resolve against), this
+     grew silently past the card and was invisibly clipped by
+     .expand-card's own overflow: hidden. That was a real, reported bug
+     even though nothing visibly poked outside the card: .phone-mock
+     centers itself at 50%/50% of THIS box, so when this box was taller
+     than the visible card, the phone's own center point sat below the
+     card's true visual center, reading as "not centered" / hugging the
+     bottom. Same fix already shipped for the mobile stage-media override
+     below (32vh/32dvh), just previously missing here. */
+  max-height: 85vh;
   flex-shrink: 0;
 }
 
@@ -792,6 +807,21 @@ body {
      than intended if those interact in a way that isn't airtight at some
      viewport size, this clips it outright regardless. */
   overflow: hidden;
+  /* Belt and suspenders' second belt, specifically for .phone-mock: a
+     reported screenshot showed the tilted phone's rendered silhouette
+     poking out past this box's edge (past the rounded card corner, into
+     the page behind it) despite the overflow: hidden above. Root cause is
+     a known cross-browser gotcha, not a bug in the phone's own sizing:
+     `perspective` on this element plus a `will-change: transform` 3D
+     child (.phone-mock) promotes that child to its own compositor layer,
+     and GPU-composited 3D layers are not always clipped correctly by an
+     ancestor's box-model `overflow: hidden`, especially mid-rotation when
+     the projected footprint is larger than the flat, unrotated
+     offsetWidth/offsetHeight that .phone-mock's own drag-bounds math
+     clamps against. clip-path is enforced as a hard rasterized mask
+     rather than going through that same box-model/compositing path, so it
+     holds even when overflow: hidden alone doesn't. */
+  clip-path: inset(0);
   /* Containing block for .phone-mock's position: absolute below (Projects
      only, desktop only), so its drag physics bounce within THIS box's own
      bounds rather than the whole fixed-position modal card. Harmless for

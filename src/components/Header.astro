@@ -1,5 +1,6 @@
 ---
 import { socials } from '../data/socials';
+import { facts } from '../data/facts';
 
 const links = [
   { id: 'career', label: 'Career' },
@@ -15,7 +16,7 @@ const links = [
   id="mobile-header"
   class="mobile-header fixed top-0 inset-x-0 z-40 flex items-center justify-between gap-8 px-6 py-4 bg-primary-dark/70 backdrop-blur-md md:hidden"
 >
-  <a href="#home" class="relative z-40 font-display text-xl font-bold text-white">favian izza.</a>
+  <a href="#home" class="relative z-40 font-display text-xl font-bold text-white">{facts.wordmark}</a>
 
   <button
     id="menu-toggle"
@@ -67,7 +68,7 @@ const links = [
   </div>
 
   <a
-    href="/cv/Favian-Izza-CV.pdf"
+    href={facts.cvUrl}
     target="_blank"
     rel="noreferrer"
     download

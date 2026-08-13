@@ -1,3 +1,5 @@
+import { facts } from './facts';
+
 export const certifications = [
   {
     slug: 'azure-ai-900',
@@ -7,11 +9,11 @@ export const certifications = [
     documentUrl: 'https://drive.google.com/file/d/18OjjSIEtWju__RbhvunXi_mdmO6CkkXY/view',
   },
   {
-    slug: 'ui-ept',
-    short: 'UI EPT',
-    issuer: 'LBI UI',
+    slug: 'toefl-itp',
+    short: 'TOEFL ITP',
+    issuer: 'ILP',
     date: 'Mar 2026',
-    documentUrl: 'https://drive.google.com/file/d/1dmjumRFNUrRccP936auLNhoacXYdnEca/view',
+    documentUrl: 'https://drive.google.com/file/d/184_P5_Cx4WcCXrXfGfz9o70gmAn2GlRz/view?usp=sharing',
   },
   {
     slug: 'bnsp-itil',
@@ -23,7 +25,7 @@ export const certifications = [
   {
     slug: 'graduation-certificate',
     short: 'Graduation Cert',
-    issuer: 'Bandung Institute of Technology (ITB)',
+    issuer: facts.education.institution,
     date: 'Aug 2026',
     documentUrl: '/cv/graduation-certificate.pdf',
   },

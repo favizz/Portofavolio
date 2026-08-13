@@ -1,4 +1,6 @@
 ---
+import { facts } from '../data/facts';
+
 const inputClass =
   'w-full rounded-lg border border-primary-light/20 bg-primary-deep/40 px-4 py-3 text-sm text-white placeholder:text-text-muted/60 outline-none transition-colors focus:border-accent';
 ---
@@ -63,8 +65,8 @@ const inputClass =
   </div>
 </section>
 
-<script>
-  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+<script is:inline define:vars={{ contactFirstName: facts.firstName, contactEmail: facts.email }}>
+  const form = document.getElementById('contact-form');
 
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -73,9 +75,9 @@ const inputClass =
     const subject = String(data.get('subject') ?? '');
     const message = String(data.get('message') ?? '');
 
-    const body = `Hi Favian,\n\n${message}\n\nFrom: ${name}`;
+    const body = `Hi ${contactFirstName},\n\n${message}\n\nFrom: ${name}`;
     const url =
-      'https://mail.google.com/mail/?view=cm&fs=1&to=izza.diasputra10@gmail.com' +
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${contactEmail}` +
       `&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     window.open(url, '_blank', 'noopener');
