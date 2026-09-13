@@ -1,0 +1,15 @@
+# Node
+node_modules/
+.next/
+dist/
+npm-debug.log*
+
+# Env files (contain DATABASE_URL - never commit real credentials)
+.env.local
+.env*.local
+
+# Compiled Go binary (rebuild with `go build`)
+coverage-service/coverage-service
+
+# OS
+.DS_Store

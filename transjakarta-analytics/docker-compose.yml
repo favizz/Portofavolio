@@ -1,0 +1,74 @@
+# TransJakarta Network Analytics - local dev stack. Production deploys
+# as: api + web on Render (see render.yaml), Postgres on Neon. This file
+# is for local development/testing only.
+#
+#   postgres          real GTFS-derived schema (db/schema.sql)
+#   ingestion         one-off job: loads the real, cached GTFS feed into postgres
+#   coverage-service  one-off job: computes the real spatial coverage grid (Go)
+#   api               NestJS, serves computed headway/coverage/network endpoints
+#   web               Next.js frontend
+#
+# ingestion and coverage-service run once and exit; api and web wait for
+# them to complete successfully before starting.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: transjakarta
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transjakarta"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ingestion:
+    build: ./ingestion
+    environment:
+      DATABASE_URL: postgres://postgres@postgres:5432/transjakarta
+    volumes:
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  coverage-service:
+    build: ./coverage-service
+    environment:
+      DATABASE_URL: postgres://postgres@postgres:5432/transjakarta
+    depends_on:
+      ingestion:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://postgres@postgres:5432/transjakarta
+      PORT: 3001
+      CORS_ORIGIN: "*"
+    ports:
+      - "3001:3001"
+    depends_on:
+      coverage-service:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:

@@ -1,0 +1,46 @@
+# Render Blueprint - deploys the API and the frontend as two services.
+# Database is Neon (not Render's own Postgres), so DATABASE_URL is set
+# manually per-service in the Render dashboard rather than defined here.
+#
+# Ingestion (ingestion/) and the Go coverage-service (coverage-service/)
+# are deliberately NOT services here - they're one-off jobs, not
+# long-running processes. Run them once against your Neon DATABASE_URL
+# from your own machine (see their READMEs), or trigger them as a Render
+# "Job" (dashboard -> a service -> Jobs -> Run Job) using the same repo.
+
+# Render's `fromService`/`property: host` returns a bare hostname with no
+# `https://` scheme, which would silently break both CORS_ORIGIN and
+# NEXT_PUBLIC_API_URL (both need a full origin URL) - so this Blueprint
+# deliberately does NOT wire those automatically. Deploy both services
+# once, note the two onrender.com URLs Render assigns, then set:
+#   transjakarta-api  -> CORS_ORIGIN        = https://transjakarta-web.onrender.com
+#   transjakarta-web  -> NEXT_PUBLIC_API_URL = https://transjakarta-api.onrender.com
+# in the Render dashboard, and redeploy transjakarta-web (NEXT_PUBLIC_*
+# vars are baked in at build time, so this needs a rebuild, not just a
+# restart).
+
+services:
+  - type: web
+    name: transjakarta-api
+    runtime: node
+    rootDir: api
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # set to your Neon connection string in the Render dashboard
+      - key: CORS_ORIGIN
+        sync: false # set after first deploy, see note above
+
+  - type: web
+    name: transjakarta-web
+    runtime: node
+    rootDir: web
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # set after first deploy, see note above
