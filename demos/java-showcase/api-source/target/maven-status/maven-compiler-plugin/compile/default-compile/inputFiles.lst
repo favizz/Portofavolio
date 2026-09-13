@@ -1,0 +1,10 @@
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/Asset.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetController.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetMovement.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetMovementRepository.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetNotFoundException.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetRepository.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/AssetService.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/JwtAuthFilter.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/SecurityConfig.java
+/Users/favianid/Documents/GitHub/Portofavolio/demos/java-showcase/api-source/src/main/java/com/wms/asset/WmsAssetApplication.java

@@ -1,0 +1,92 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0c;
+  --panel: #131317;
+  --border: #26262e;
+  --text: #e5e5ea;
+  --muted: #8b8b96;
+  --accent: #c4b5fd;
+  --bad: #fb7185;
+  --good: #34d399;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding-block: 32px;
+}
+
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 20px; }
+
+header h1 { font-size: 1.5rem; margin: 0 0 8px; }
+code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.sub { color: var(--muted); line-height: 1.55; font-size: 0.95rem; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 20px;
+  padding: 20px;
+}
+
+label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+
+.input-row { display: flex; gap: 8px; }
+#expr {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.95rem;
+}
+#expr:focus { outline: none; border-color: var(--accent); }
+
+button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+button:hover { border-color: var(--accent); }
+
+.examples { margin-top: 14px; font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.result { margin-top: 20px; font-size: 0.9rem; color: var(--muted); }
+
+.trace { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; }
+.trace .label { color: var(--muted); margin-right: 8px; }
+.trace code { display: inline-block; }
+
+footer { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 16px; }
+footer p { color: var(--muted); font-size: 0.8rem; }
+footer a { color: var(--accent); }
+
+@media (max-width: 480px) {
+  .wrap { padding-inline: 16px; }
+  .input-row { flex-direction: column; }
+}

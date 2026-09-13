@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone signed in (including anonymous auth) can read the guestbook
+    // and add one message, but can only ever create - not edit or delete
+    // someone else's (or even their own) entry once written.
+    match /guestbook/{messageId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 280;
+      allow update, delete: if false;
+    }
+
+    // A single counter document, incremented via a transaction from the
+    // client. Only ever +1 from whatever it currently holds (0 if the
+    // document doesn't exist yet, e.g. the very first visitor).
+    match /stats/visitorCount {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.data.count ==
+                      (resource == null ? 0 : resource.data.count) + 1;
+    }
+  }
+}

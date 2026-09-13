@@ -1,0 +1,98 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0c;
+  --panel: #131317;
+  --border: #26262e;
+  --text: #e5e5ea;
+  --muted: #8b8b96;
+  --accent: #fbbf24;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding-block: 32px;
+}
+
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 20px; }
+
+header h1 { font-size: 1.5rem; margin: 0 0 8px; }
+code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.sub { color: var(--muted); line-height: 1.55; font-size: 0.95rem; }
+
+.setup-note {
+  margin-top: 12px;
+  background: #2a1a0a;
+  border: 1px solid #7c4a12;
+  color: #fbbf24;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-top: 24px;
+}
+.counter { display: flex; flex-direction: column; }
+.counter-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.counter-label { font-size: 0.8rem; color: var(--muted); }
+.status { font-size: 0.8rem; color: var(--muted); }
+
+.guest-form { display: flex; gap: 8px; margin-top: 20px; }
+#messageInput {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+#messageInput:focus { outline: none; border-color: var(--accent); }
+.guest-form button {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.guest-form button:hover { border-color: var(--accent); }
+
+.messages { list-style: none; padding: 0; margin: 20px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.messages li {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+.messages li time { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 4px; }
+.messages .empty { color: var(--muted); text-align: center; padding: 20px; }
+
+footer { margin-top: 32px; border-top: 1px solid var(--border); padding-top: 16px; }
+footer p { color: var(--muted); font-size: 0.8rem; }
+footer a { color: var(--accent); }
+
+@media (max-width: 480px) {
+  .wrap { padding-inline: 16px; }
+  .guest-form { flex-direction: column; }
+}

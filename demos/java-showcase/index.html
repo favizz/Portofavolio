@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Java Spring Boot — Architecture Showcase</title>
+<meta name="description" content="A real, compiling Spring Boot REST API for IT asset management, presented as source/architecture since Vercel can't run a live JVM backend." />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Java / Spring Boot — Architecture Showcase</h1>
+      <p class="sub">
+        <strong>Why this page and not a live demo:</strong> Vercel doesn't run JVM services —
+        there's no honest way to make a Spring Boot API "live" on a platform whose backend
+        story is short-lived serverless functions in Node/Python/Go/Ruby, not a long-running
+        JVM process. Rather than fake it, this is a real, <strong>compiling</strong> Spring Boot
+        module (verified with <code>mvn compile</code> — 10 source files, BUILD SUCCESS) shown
+        here as source + architecture. It's a compact re-implementation of the IT asset
+        management API described in the PT Toyota Astra Motor "WMS" internship (asset
+        movement/handover tracking, an append-only audit trail, JWT + RBAC).
+      </p>
+    </header>
+
+    <main>
+      <section class="arch">
+        <h2>Architecture</h2>
+        <div class="diagram">
+          <div class="tier">
+            <div class="box client">Frontend<br /><span>(not in this repo)</span></div>
+          </div>
+          <div class="arrow">HTTPS + Bearer JWT</div>
+          <div class="tier">
+            <div class="box">AssetController<br /><span>@PreAuthorize RBAC</span></div>
+          </div>
+          <div class="arrow">&darr;</div>
+          <div class="tier">
+            <div class="box">AssetService<br /><span>relocate() writes an audit row</span></div>
+          </div>
+          <div class="arrow">&darr;</div>
+          <div class="tier two-col">
+            <div class="box">AssetRepository</div>
+            <div class="box">AssetMovementRepository</div>
+          </div>
+          <div class="arrow">JPA / Hibernate</div>
+          <div class="tier">
+            <div class="box db">SQL Server<br /><span>(H2 in-memory for this showcase build)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="endpoints">
+        <h2>Endpoints</h2>
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td>/api/assets</td><td>authenticated</td><td>List all assets</td></tr>
+            <tr><td>GET</td><td>/api/assets/{id}</td><td>authenticated</td><td>Get one asset</td></tr>
+            <tr><td>POST</td><td>/api/assets</td><td>ASSET_ADMIN</td><td>Register a new asset</td></tr>
+            <tr><td>POST</td><td>/api/assets/{id}/relocate</td><td>ASSET_ADMIN</td><td>Move between divisions, writes an audit row</td></tr>
+            <tr><td>GET</td><td>/api/assets/{id}/history</td><td>authenticated</td><td>Full movement history for one asset</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="source">
+        <h2>Source</h2>
+        <div class="tabs" id="tabs"></div>
+        <pre><code class="language-java" id="codeView">Loading…</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Full source (10 files, real <code>pom.xml</code>) lives in
+        <a href="api-source/">api-source/</a>. Run it yourself:
+        <code>cd api-source && mvn spring-boot:run</code> — starts on
+        <code>localhost:8080</code> against an in-memory H2 database, no external
+        services required.
+      </p>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/java.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

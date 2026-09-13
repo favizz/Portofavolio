@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Docker — Multi-Service Architecture Showcase</title>
+<meta name="description" content="A real, YAML-valid Docker Compose stack for an IoT telemetry platform, presented as an architecture walkthrough since Docker has no live-in-browser form." />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/atom-one-dark.min.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Docker — Multi-Service Architecture Showcase</h1>
+      <p class="sub">
+        <strong>Why a walkthrough and not a live demo:</strong> Docker is a packaging/orchestration
+        tool, not something that runs "in the browser" — Vercel doesn't host containers at all.
+        This page presents a real, six-service <code>docker-compose.yml</code> (validated with
+        <code>docker compose config</code> — see the README) for an IoT telemetry platform: the
+        same shape as the Netflow project's own deployment (MQTT broker, Redis-backed job queue,
+        nginx in front of the API), reimplemented here as a small, original, runnable example.
+      </p>
+    </header>
+
+    <main>
+      <section>
+        <h2>Service topology</h2>
+        <div class="panel diagram-panel">
+          <pre class="mermaid" id="diagram"></pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>Why it's shaped this way</h2>
+        <ul class="notes">
+          <li><strong>nginx in front of api</strong> — the API container is never exposed directly; only nginx's port is published.</li>
+          <li><strong>api never runs detection inline</strong> — it only enqueues onto Redis, keeping the MQTT ingest path fast regardless of how slow anomaly detection gets.</li>
+          <li><strong>worker scales horizontally (replicas: 2)</strong> — safe with zero coordination code, because Redis's <code>BLPOP</code> hands each queued job to exactly one worker.</li>
+          <li><strong>postgres has a healthcheck; api/worker depend on it via <code>condition: service_healthy</code></strong> — without this, the app containers can start and immediately fail against a Postgres that's still initializing.</li>
+          <li><strong>named volumes for postgres/redis data</strong> — <code>docker compose down</code> (without <code>-v</code>) doesn't wipe state on every restart.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Source</h2>
+        <div class="tabs" id="fileTabs"></div>
+        <pre><code id="fileView">Loading…</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <p>Full stack: <a href="stack/">stack/</a>. See the repo README for how to actually run it with Docker Desktop.</p>
+    </footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/yaml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/dockerfile.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/languages/nginx.min.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

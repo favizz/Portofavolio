@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Firebase — Live Guestbook</title>
+<meta name="description" content="A realtime guestbook with a live visitor counter, using the Firebase client SDK directly against Firestore, no custom backend." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Firebase — Live Guestbook</h1>
+      <p class="sub">
+        Talks directly to <strong>Cloud Firestore</strong> from this static page via the
+        Firebase JS SDK &mdash; no custom backend, access controlled entirely by
+        <code>firestore.rules</code> (anonymous auth required to write, one message per
+        session, no edits/deletes). Every message you see below is synced in real time
+        via <code>onSnapshot</code>.
+      </p>
+      <p class="setup-note" id="setupNote" hidden>
+        &#9888; This deploy hasn't been wired to a real Firebase project yet &mdash; see
+        <code>firebase-config.js</code> and the README.
+      </p>
+    </header>
+
+    <main>
+      <div class="counter-row">
+        <div class="counter">
+          <span class="counter-value" id="visitorCount">&mdash;</span>
+          <span class="counter-label">visitors have signed in</span>
+        </div>
+        <span id="status" class="status">Connecting…</span>
+      </div>
+
+      <form id="guestForm" class="guest-form">
+        <input id="messageInput" type="text" maxlength="280" placeholder="Leave a message…" autocomplete="off" />
+        <button type="submit">Sign the guestbook</button>
+      </form>
+
+      <ul id="messages" class="messages"></ul>
+    </main>
+
+    <footer>
+      <p>Source: <a href="script.js">script.js</a>, <a href="firestore.rules">firestore.rules</a>. See the README to wire up your own Firebase project.</p>
+    </footer>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>

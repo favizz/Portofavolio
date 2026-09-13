@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Client-Side Object Detection — TensorFlow.js</title>
+<meta name="description" content="Real-time object detection running entirely in the browser via TensorFlow.js, no backend server." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Client-Side Object Detection</h1>
+      <p class="sub">
+        Runs a COCO-SSD model entirely in your browser via <strong>TensorFlow.js</strong> —
+        no video frame ever leaves this tab, no backend server involved. Same underlying
+        skill (real-time person/object detection with bounding boxes) as the CCTV occupancy
+        pipeline described in the portfolio, adapted here to run client-side only.
+      </p>
+    </header>
+
+    <main>
+      <div class="stage">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <img id="still" alt="uploaded image" hidden />
+      </div>
+
+      <div class="controls">
+        <button id="startCam">Start Webcam</button>
+        <label class="upload-btn">
+          Upload Image
+          <input type="file" id="fileInput" accept="image/*" hidden />
+        </label>
+        <button id="stop" disabled>Stop</button>
+        <span id="status">Loading model…</span>
+      </div>
+
+      <div class="detections">
+        <h2>Detections</h2>
+        <ul id="detectionList"><li class="muted">Nothing detected yet.</li></ul>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        Model: <a href="https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd" target="_blank" rel="noopener">TensorFlow.js COCO-SSD</a>,
+        pretrained on the COCO dataset (80 object classes). Everything runs on-device (WebGL backend when available).
+        No images or video are uploaded anywhere.
+      </p>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

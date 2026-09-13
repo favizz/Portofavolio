@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>C &rarr; WASM — Stack-Based Expression Evaluator</title>
+<meta name="description" content="A hand-rolled C stack ADT compiled to WebAssembly via Emscripten, running an infix-to-postfix expression evaluator entirely in the browser." />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>C &rarr; WebAssembly: Stack-Based Expression Evaluator</h1>
+      <p class="sub">
+        <code>evaluator.c</code> is real C — hand-rolled stack ADTs over raw arrays (no
+        <code>&lt;stack&gt;</code>, no libc containers), implementing the classic
+        shunting-yard algorithm: tokenize &rarr; infix-to-postfix &rarr; postfix evaluation.
+        Compiled with Emscripten to WebAssembly and run directly in this tab, the same
+        kind of custom-ADT-from-scratch approach used in ITB's Algorithms &amp; Data
+        Structures coursework.
+      </p>
+    </header>
+
+    <main>
+      <div class="panel">
+        <label for="expr">Infix expression</label>
+        <div class="input-row">
+          <input id="expr" type="text" value="3 + 4 * (2 - 1)" spellcheck="false" />
+          <button id="run">Evaluate</button>
+        </div>
+
+        <div class="examples">
+          Try:
+          <button class="chip" data-expr="3 + 4 * (2 - 1)">3 + 4 * (2 - 1)</button>
+          <button class="chip" data-expr="(10 - 2) / (1 + 3)">(10 - 2) / (1 + 3)</button>
+          <button class="chip" data-expr="2 * (3 + (4 - 1)) / 5">2 * (3 + (4 - 1)) / 5</button>
+          <button class="chip" data-expr="1 / 0">1 / 0</button>
+        </div>
+
+        <div class="result" id="result">
+          <span id="status">Loading WASM…</span>
+        </div>
+
+        <div class="trace" id="trace" hidden>
+          <div><span class="label">Tokens:</span> <code id="tokensOut"></code></div>
+          <div><span class="label">Postfix (RPN):</span> <code id="postfixOut"></code></div>
+          <div><span class="label">Result:</span> <code id="resultOut"></code></div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        Source: <a href="evaluator.c">evaluator.c</a>. Build:
+        <code>emcc evaluator.c -O2 -s EXPORTED_FUNCTIONS=... -s MODULARIZE=1 -o evaluator.js</code>
+        — see the repo README for the full command.
+      </p>
+    </footer>
+  </div>
+
+  <script src="evaluator.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
