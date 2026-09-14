@@ -1,0 +1,5 @@
+# transjakarta-analytics/ is a separate project (api + web deploy to
+# Render, Postgres to Neon - see transjakarta-analytics/README.md). It has
+# its own package.json/tsconfig.json files that this Vercel project (the
+# Astro portfolio site) has no reason to install, build, or type-scan.
+transjakarta-analytics/
