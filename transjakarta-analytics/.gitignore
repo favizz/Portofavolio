@@ -8,6 +8,9 @@ npm-debug.log*
 .env.local
 .env*.local
 
+# Neon CLI's local project link (org/project IDs, not secret, but local tooling state)
+.neon
+
 # Compiled Go binary (rebuild with `go build`)
 coverage-service/coverage-service
 
