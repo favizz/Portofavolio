@@ -2,6 +2,14 @@
 // subset of it this project analyzes into Postgres. Idempotent: truncates
 // and reloads every run, so it's safe to re-run whenever the upstream feed
 // changes.
+//
+// Every table load is batched (multi-row INSERT, BATCH rows per round
+// trip) rather than one INSERT per row - against a remote database (Neon,
+// Render's own Postgres, anything not on localhost) round-trip latency
+// dominates: this feed has ~9,800 total rows across agency/routes/stops/
+// calendar/trips/stop_times/frequencies, and one-row-at-a-time inserts
+// turn into ~9,800 sequential round trips (tens of minutes over a real
+// network). Batched, it's under 100 round trips.
 import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
@@ -13,6 +21,7 @@ const DATA_DIR = path.resolve(import.meta.dirname, '../data');
 const ZIP_PATH = path.join(DATA_DIR, 'file_gtfs.zip');
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost/transjakarta';
+const BATCH = 500;
 
 async function downloadFeed() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -48,6 +57,42 @@ function toDate(yyyymmdd) {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
 
+/**
+ * Batched multi-row INSERT. `rowToParams` maps one source row to an array
+ * of column values (or `null` to skip that row - used for rows referencing
+ * an id that didn't survive an earlier table's own filtering).
+ */
+async function batchInsert(client, label, table, columns, sourceRows, rowToParams, conflictClause = '') {
+  console.log(`Loading ${sourceRows.length} ${label}...`);
+  const colList = columns.join(', ');
+  let loaded = 0;
+
+  for (let i = 0; i < sourceRows.length; i += BATCH) {
+    const chunk = sourceRows.slice(i, i + BATCH);
+    const values = [];
+    const params = [];
+    let paramIdx = 0;
+
+    for (const row of chunk) {
+      const rowParams = rowToParams(row);
+      if (rowParams === null) continue;
+      const placeholders = rowParams.map(() => `$${++paramIdx}`);
+      values.push(`(${placeholders.join(',')})`);
+      params.push(...rowParams);
+    }
+
+    if (values.length === 0) continue;
+
+    await client.query(
+      `INSERT INTO ${table} (${colList}) VALUES ${values.join(',')} ${conflictClause}`,
+      params
+    );
+    loaded += values.length;
+    process.stdout.write(`\r  ${Math.min(i + BATCH, sourceRows.length)}/${sourceRows.length}`);
+  }
+  console.log(loaded === sourceRows.length ? '' : ` (${loaded} inserted, ${sourceRows.length - loaded} skipped)`);
+}
+
 async function main() {
   let zipBuffer;
   if (process.argv.includes('--use-cached') && fs.existsSync(ZIP_PATH)) {
@@ -80,90 +125,117 @@ async function main() {
                trips, calendar, stops, routes, agency RESTART IDENTITY CASCADE
     `);
 
-    console.log(`Loading ${agency.length} agencies...`);
-    for (const a of agency) {
-      await client.query(
-        `INSERT INTO agency (agency_id, agency_name, agency_url, agency_tz) VALUES ($1,$2,$3,$4)`,
-        [a.agency_id, a.agency_name, a.agency_url, a.agency_timezone]
-      );
-    }
+    await batchInsert(client, 'agencies', 'agency', ['agency_id', 'agency_name', 'agency_url', 'agency_tz'], agency, (a) => [
+      a.agency_id,
+      a.agency_name,
+      a.agency_url,
+      a.agency_timezone,
+    ]);
 
-    console.log(`Loading ${routes.length} routes...`);
-    for (const r of routes) {
-      await client.query(
-        `INSERT INTO routes (route_id, agency_id, route_short_name, route_long_name, route_desc, route_type, route_color)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [r.route_id, r.agency_id || null, r.route_short_name, r.route_long_name, r.route_desc, r.route_type ? parseInt(r.route_type, 10) : null, r.route_color]
-      );
-    }
+    await batchInsert(
+      client,
+      'routes',
+      'routes',
+      ['route_id', 'agency_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_type', 'route_color'],
+      routes,
+      (r) => [
+        r.route_id,
+        r.agency_id || null,
+        r.route_short_name,
+        r.route_long_name,
+        r.route_desc,
+        r.route_type ? parseInt(r.route_type, 10) : null,
+        r.route_color,
+      ]
+    );
 
-    console.log(`Loading ${stops.length} stops...`);
-    for (const s of stops) {
-      const lat = parseFloat(s.stop_lat);
-      const lon = parseFloat(s.stop_lon);
-      if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
-      await client.query(
-        `INSERT INTO stops (stop_id, stop_code, stop_name, stop_lat, stop_lon, location_type, wheelchair_boarding)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)
-         ON CONFLICT (stop_id) DO NOTHING`,
-        [s.stop_id, s.stop_code || null, s.stop_name, lat, lon, s.location_type ? parseInt(s.location_type, 10) : 0, s.wheelchair_boarding ? parseInt(s.wheelchair_boarding, 10) : null]
-      );
-    }
+    await batchInsert(
+      client,
+      'stops',
+      'stops',
+      ['stop_id', 'stop_code', 'stop_name', 'stop_lat', 'stop_lon', 'location_type', 'wheelchair_boarding'],
+      stops,
+      (s) => {
+        const lat = parseFloat(s.stop_lat);
+        const lon = parseFloat(s.stop_lon);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
+        return [
+          s.stop_id,
+          s.stop_code || null,
+          s.stop_name,
+          lat,
+          lon,
+          s.location_type ? parseInt(s.location_type, 10) : 0,
+          s.wheelchair_boarding ? parseInt(s.wheelchair_boarding, 10) : null,
+        ];
+      },
+      'ON CONFLICT (stop_id) DO NOTHING'
+    );
 
-    console.log(`Loading ${calendar.length} calendar entries...`);
-    for (const c of calendar) {
-      await client.query(
-        `INSERT INTO calendar (service_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_date, end_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [c.service_id, toBool(c.monday), toBool(c.tuesday), toBool(c.wednesday), toBool(c.thursday), toBool(c.friday), toBool(c.saturday), toBool(c.sunday), toDate(c.start_date), toDate(c.end_date)]
-      );
-    }
+    await batchInsert(
+      client,
+      'calendar entries',
+      'calendar',
+      ['service_id', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'start_date', 'end_date'],
+      calendar,
+      (c) => [
+        c.service_id,
+        toBool(c.monday),
+        toBool(c.tuesday),
+        toBool(c.wednesday),
+        toBool(c.thursday),
+        toBool(c.friday),
+        toBool(c.saturday),
+        toBool(c.sunday),
+        toDate(c.start_date),
+        toDate(c.end_date),
+      ]
+    );
 
-    console.log(`Loading ${trips.length} trips...`);
     const knownServiceIds = new Set(calendar.map((c) => c.service_id));
-    for (const t of trips) {
-      await client.query(
-        `INSERT INTO trips (trip_id, route_id, service_id, trip_headsign, direction_id)
-         VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (trip_id) DO NOTHING`,
-        [t.trip_id, t.route_id, knownServiceIds.has(t.service_id) ? t.service_id : null, t.trip_headsign, t.direction_id ? parseInt(t.direction_id, 10) : null]
-      );
-    }
+    await batchInsert(
+      client,
+      'trips',
+      'trips',
+      ['trip_id', 'route_id', 'service_id', 'trip_headsign', 'direction_id'],
+      trips,
+      (t) => [
+        t.trip_id,
+        t.route_id,
+        knownServiceIds.has(t.service_id) ? t.service_id : null,
+        t.trip_headsign,
+        t.direction_id ? parseInt(t.direction_id, 10) : null,
+      ],
+      'ON CONFLICT (trip_id) DO NOTHING'
+    );
 
-    console.log(`Loading ${stopTimes.length} stop_times (batched)...`);
     const knownStopIds = new Set(stops.map((s) => s.stop_id));
     const knownTripIds = new Set(trips.map((t) => t.trip_id));
-    const BATCH = 500;
-    for (let i = 0; i < stopTimes.length; i += BATCH) {
-      const batch = stopTimes
-        .slice(i, i + BATCH)
-        .filter((st) => knownTripIds.has(st.trip_id) && knownStopIds.has(st.stop_id));
-      if (batch.length === 0) continue;
-      const values = [];
-      const params = [];
-      batch.forEach((st, idx) => {
-        const base = idx * 5;
-        values.push(`($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5})`);
-        params.push(st.trip_id, parseInt(st.stop_sequence, 10), st.stop_id, st.arrival_time, st.departure_time);
-      });
-      await client.query(
-        `INSERT INTO stop_times (trip_id, stop_sequence, stop_id, arrival_time, departure_time)
-         VALUES ${values.join(',')} ON CONFLICT DO NOTHING`,
-        params
-      );
-      process.stdout.write(`\r  ${Math.min(i + BATCH, stopTimes.length)}/${stopTimes.length}`);
-    }
-    console.log('');
+    await batchInsert(
+      client,
+      'stop_times',
+      'stop_times',
+      ['trip_id', 'stop_sequence', 'stop_id', 'arrival_time', 'departure_time'],
+      stopTimes,
+      (st) => {
+        if (!knownTripIds.has(st.trip_id) || !knownStopIds.has(st.stop_id)) return null;
+        return [st.trip_id, parseInt(st.stop_sequence, 10), st.stop_id, st.arrival_time, st.departure_time];
+      },
+      'ON CONFLICT DO NOTHING'
+    );
 
-    console.log(`Loading ${frequencies.length} frequency entries...`);
-    for (const f of frequencies) {
-      if (!knownTripIds.has(f.trip_id)) continue;
-      await client.query(
-        `INSERT INTO frequencies (trip_id, start_time, end_time, headway_secs)
-         VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
-        [f.trip_id, f.start_time, f.end_time, parseInt(f.headway_secs, 10)]
-      );
-    }
+    await batchInsert(
+      client,
+      'frequency entries',
+      'frequencies',
+      ['trip_id', 'start_time', 'end_time', 'headway_secs'],
+      frequencies,
+      (f) => {
+        if (!knownTripIds.has(f.trip_id)) return null;
+        return [f.trip_id, f.start_time, f.end_time, parseInt(f.headway_secs, 10)];
+      },
+      'ON CONFLICT DO NOTHING'
+    );
 
     await client.query('COMMIT');
     console.log('Ingestion complete.');
