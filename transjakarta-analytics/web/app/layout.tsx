@@ -24,6 +24,7 @@ const NAV = [
   { href: "/map", label: "Map" },
   { href: "/headway", label: "Service Frequency" },
   { href: "/network", label: "Transfer Network" },
+  { href: "/capacity", label: "Capacity Priority" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
