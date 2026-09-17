@@ -1,10 +1,17 @@
 export const achievements = [
   {
+    slug: 'compfest-finalist',
+    short: 'COMPFEST XVII Finalist',
+    org: 'Universitas Indonesia',
+    date: 'Sep 2026',
+    documentUrl: 'https://drive.google.com/file/d/1uCR9YHYqQYSc0M30VpTllW97T6HW_HYE/view?usp=sharing',
+  },
+  {
     slug: 'bsi-talenta',
     short: 'BSI Talenta Awardee',
     org: 'Bank Syariah Indonesia',
     date: 'Nov 2025',
-    documentUrl: 'https://www.instagram.com/p/DROCxsWkplq/?igsh=bGQyaGE1Ymg1Yml5',
+    documentUrl: 'https://drive.google.com/file/d/1BGZbsU0vcOQn-WyyMh9WquqxoTfbRB65/view?usp=sharing',
   },
   {
     slug: 'gemastik-best-paper',

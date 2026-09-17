@@ -14,5 +14,8 @@ npm-debug.log*
 # Compiled Go binary (rebuild with `go build`)
 coverage-service/coverage-service
 
+# Cached downloaded GTFS feed (ingest.js --use-cached), regenerated on demand
+ingestion/data/
+
 # OS
 .DS_Store

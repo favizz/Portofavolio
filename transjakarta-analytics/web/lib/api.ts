@@ -67,6 +67,31 @@ export interface NetworkGraph {
   edges: { route_a: string; route_b: string; shared_stops: number }[];
 }
 
+export interface FleetHeadwayWindow {
+  startTime: string;
+  endTime: string;
+  headwaySecs: number;
+}
+
+export interface FleetDirection {
+  directionId: number;
+  shapeId: string;
+  representativeTripId: string;
+  headsign: string | null;
+  coordinates: [number, number][];
+  tripDurationSecs: number | null;
+  stops: { stopId: string; stopName: string; elapsedSecs: number | null }[];
+  headwayProfile: FleetHeadwayWindow[];
+}
+
+export interface FleetRoute {
+  routeId: string;
+  routeShortName: string;
+  routeLongName: string;
+  note: string;
+  directions: FleetDirection[];
+}
+
 export const api = {
   routes: () => get<RouteSummary[]>('/routes'),
   headwaySummary: () => get<HeadwaySummary>('/headway/summary'),
@@ -75,4 +100,5 @@ export const api = {
   stops: () => get<Stop[]>('/stops'),
   networkGraph: (minSharedStops = 3, topN = 30) =>
     get<NetworkGraph>(`/network/graph?minSharedStops=${minSharedStops}&topN=${topN}`),
+  fleet: (routeId: string) => get<FleetRoute>(`/fleet/${encodeURIComponent(routeId)}`),
 };

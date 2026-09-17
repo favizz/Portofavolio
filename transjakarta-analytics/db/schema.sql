@@ -49,9 +49,19 @@ CREATE TABLE trips (
     route_id      TEXT REFERENCES routes(route_id),
     service_id    TEXT REFERENCES calendar(service_id),
     trip_headsign TEXT,
-    direction_id  INT
+    direction_id  INT,
+    shape_id      TEXT
 );
 CREATE INDEX idx_trips_route ON trips (route_id);
+CREATE INDEX idx_trips_shape ON trips (shape_id);
+
+CREATE TABLE shapes (
+    shape_id           TEXT NOT NULL,
+    shape_pt_sequence  INT NOT NULL,
+    shape_pt_lat       DOUBLE PRECISION NOT NULL,
+    shape_pt_lon       DOUBLE PRECISION NOT NULL,
+    PRIMARY KEY (shape_id, shape_pt_sequence)
+);
 
 CREATE TABLE stop_times (
     trip_id        TEXT REFERENCES trips(trip_id),

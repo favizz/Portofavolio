@@ -1,10 +1,27 @@
 export const projects = [
   {
+    slug: 'transjakarta-analytics',
+    name: 'TransJakarta Network Analytics',
+    tag: 'Public-Transit Data Platform',
+    period: 'Sep 2026',
+    cardImage: '/images/projects/transjakarta-analytics-front.webp',
+    stageImage: '/images/projects/transjakarta-analytics-inside.webp',
+    description:
+      "Built on TransJakarta's own official GTFS feed (NestJS API, Next.js frontend, PostgreSQL, plus a Go microservice for spatial analysis) to compute real service-frequency, coverage, and transfer-network metrics across all <strong>240 routes and 8,091 stops</strong>, replacing a set of disconnected tech demos with one tool that answers a real transit-planning question. It cross-references its own real schedule data with a separate bus-occupancy monitoring project (MPB-OMS) to flag routes that are both infrequent and crowded.",
+    highlights: [
+      'Go-based spatial-hash walkshed engine computes real 500m coverage for all 8,091 stops, avoiding a ~130M-calculation naive nearest-stop search',
+      'Batched ingestion pipeline loads all ~252,000 real GTFS rows (agency through shapes) into Postgres in under 600 round trips instead of one row at a time',
+      "Capacity Priority page cross-references real headway data against MPB-OMS's real bus-occupancy snapshot to flag routes that are both infrequent and crowded",
+      "Fleet View simulates bus positions along TransJakarta's own real shape polylines from the feed's real schedule, since the feed publishes no live vehicle-position API",
+    ],
+    tags: ['NestJS', 'Next.js', 'PostgreSQL', 'Go', 'Leaflet'],
+    url: 'https://transjakarta-web.onrender.com/',
+  },
+  {
     slug: 'netflow',
     name: 'Netflow',
     tag: 'IoT Prepaid Utility Metering System',
     period: 'Jun 2026',
-    image: '/images/placeholders/expand.webp',
     cardImage: '/images/projects/netflow-front.webp',
     stageImage: '/images/projects/netflow-inside.webp',
     description:
@@ -22,7 +39,6 @@ export const projects = [
     name: 'Genyra',
     tag: 'Genealogy Platform',
     period: 'Mar 2026',
-    image: '/images/placeholders/expand.webp',
     cardImage: '/images/projects/genealogy-platform-front.webp',
     stageImage: '/images/projects/genealogy-platform-inside.webp',
     description:
@@ -41,7 +57,6 @@ export const projects = [
     name: 'Fraud Detection System',
     tag: 'Custom ML Pipeline',
     period: 'Dec 2025',
-    image: '/images/placeholders/expand.webp',
     cardImage: '/images/projects/fraud-detection-system-front.webp',
     stageImage: '/images/projects/fraud-detection-system-inside.webp',
     description:
@@ -59,7 +74,6 @@ export const projects = [
     shortName: 'Trich AI',
     tag: 'AI-Driven Barbershop Website',
     period: 'Nov 2024',
-    image: '/images/placeholders/expand.webp',
     cardImage: '/images/projects/trich-website-front.webp',
     stageImage: '/images/projects/trich-website-inside.webp',
     description:

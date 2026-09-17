@@ -6,10 +6,10 @@
 // Every table load is batched (multi-row INSERT, BATCH rows per round
 // trip) rather than one INSERT per row - against a remote database (Neon,
 // Render's own Postgres, anything not on localhost) round-trip latency
-// dominates: this feed has ~9,800 total rows across agency/routes/stops/
-// calendar/trips/stop_times/frequencies, and one-row-at-a-time inserts
-// turn into ~9,800 sequential round trips (tens of minutes over a real
-// network). Batched, it's under 100 round trips.
+// dominates: this feed has ~252,000 total rows across agency/routes/stops/
+// calendar/trips/stop_times/frequencies/shapes, and one-row-at-a-time
+// inserts would turn into ~252,000 sequential round trips. Batched, it's
+// under 600 round trips.
 import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
@@ -112,6 +112,7 @@ async function main() {
   const trips = parseCsv(files['trips.txt']);
   const stopTimes = parseCsv(files['stop_times.txt']);
   const frequencies = parseCsv(files['frequencies.txt']);
+  const shapes = parseCsv(files['shapes.txt']);
 
   const pool = new pg.Pool({ connectionString: DATABASE_URL });
   const client = await pool.connect();
@@ -122,7 +123,7 @@ async function main() {
     console.log('Truncating existing data...');
     await client.query(`
       TRUNCATE coverage_cells, route_headway_stats, frequencies, stop_times,
-               trips, calendar, stops, routes, agency RESTART IDENTITY CASCADE
+               shapes, trips, calendar, stops, routes, agency RESTART IDENTITY CASCADE
     `);
 
     await batchInsert(client, 'agencies', 'agency', ['agency_id', 'agency_name', 'agency_url', 'agency_tz'], agency, (a) => [
@@ -197,7 +198,7 @@ async function main() {
       client,
       'trips',
       'trips',
-      ['trip_id', 'route_id', 'service_id', 'trip_headsign', 'direction_id'],
+      ['trip_id', 'route_id', 'service_id', 'trip_headsign', 'direction_id', 'shape_id'],
       trips,
       (t) => [
         t.trip_id,
@@ -205,8 +206,24 @@ async function main() {
         knownServiceIds.has(t.service_id) ? t.service_id : null,
         t.trip_headsign,
         t.direction_id ? parseInt(t.direction_id, 10) : null,
+        t.shape_id || null,
       ],
       'ON CONFLICT (trip_id) DO NOTHING'
+    );
+
+    await batchInsert(
+      client,
+      'shape points',
+      'shapes',
+      ['shape_id', 'shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon'],
+      shapes,
+      (s) => {
+        const lat = parseFloat(s.shape_pt_lat);
+        const lon = parseFloat(s.shape_pt_lon);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) return null;
+        return [s.shape_id, parseInt(s.shape_pt_sequence, 10), lat, lon];
+      },
+      'ON CONFLICT DO NOTHING'
     );
 
     const knownStopIds = new Set(stops.map((s) => s.stop_id));

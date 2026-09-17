@@ -107,7 +107,7 @@ export const experience = [
     tags: [],
     relatedProjectSlug: 'netflow',
     bullets: [
-      'GPA <strong>3.62</strong> out of 4.00',
+      'GPA <strong>3.62</strong> out of 4.00 (Cumlaude)',
       'Coursework: Algorithms & Data Structures, Database Systems, Software Engineering, Information Security, Data Analytics, and Artificial Intelligence',
     ],
   },
