@@ -1,12 +1,5 @@
 export const achievements = [
   {
-    slug: 'compfest-finalist',
-    short: 'COMPFEST XVII Finalist',
-    org: 'Universitas Indonesia',
-    date: 'Sep 2026',
-    documentUrl: 'https://drive.google.com/file/d/1uCR9YHYqQYSc0M30VpTllW97T6HW_HYE/view?usp=sharing',
-  },
-  {
     slug: 'bsi-talenta',
     short: 'BSI Talenta Awardee',
     org: 'Bank Syariah Indonesia',
@@ -19,6 +12,13 @@ export const achievements = [
     org: 'Kemendiktisaintek RI',
     date: 'Oct 2025',
     documentUrl: 'https://drive.google.com/file/d/1Is5PdVclw5D4f1ek-tARqckk3hl_wTNP/view?usp=sharing',
+  },
+  {
+    slug: 'compfest-finalist',
+    short: 'COMPFEST XVII Finalist',
+    org: 'Universitas Indonesia',
+    date: 'Sep 2025',
+    documentUrl: 'https://drive.google.com/file/d/1uCR9YHYqQYSc0M30VpTllW97T6HW_HYE/view?usp=sharing',
   },
   {
     slug: 'nsci-runner-up',

@@ -1,23 +1,5 @@
 export const projects = [
   {
-    slug: 'transjakarta-analytics',
-    name: 'TransJakarta Network Analytics',
-    tag: 'Public-Transit Data Platform',
-    period: 'Sep 2026',
-    cardImage: '/images/projects/transjakarta-analytics-front.webp',
-    stageImage: '/images/projects/transjakarta-analytics-inside.webp',
-    description:
-      "Built on TransJakarta's own official GTFS feed (NestJS API, Next.js frontend, PostgreSQL, plus a Go microservice for spatial analysis) to compute real service-frequency, coverage, and transfer-network metrics across all <strong>240 routes and 8,091 stops</strong>, replacing a set of disconnected tech demos with one tool that answers a real transit-planning question. It cross-references its own real schedule data with a separate bus-occupancy monitoring project (MPB-OMS) to flag routes that are both infrequent and crowded.",
-    highlights: [
-      'Go-based spatial-hash walkshed engine computes real 500m coverage for all 8,091 stops, avoiding a ~130M-calculation naive nearest-stop search',
-      'Batched ingestion pipeline loads all ~252,000 real GTFS rows (agency through shapes) into Postgres in under 600 round trips instead of one row at a time',
-      "Capacity Priority page cross-references real headway data against MPB-OMS's real bus-occupancy snapshot to flag routes that are both infrequent and crowded",
-      "Fleet View simulates bus positions along TransJakarta's own real shape polylines from the feed's real schedule, since the feed publishes no live vehicle-position API",
-    ],
-    tags: ['NestJS', 'Next.js', 'PostgreSQL', 'Go', 'Leaflet'],
-    url: 'https://transjakarta-web.onrender.com/',
-  },
-  {
     slug: 'netflow',
     name: 'Netflow',
     tag: 'IoT Prepaid Utility Metering System',
@@ -67,6 +49,24 @@ export const projects = [
     ],
     tags: ['Python', 'Machine Learning', 'Scikit-learn'],
     url: 'https://detection-fraud-demo.vercel.app/',
+  },
+  {
+    slug: 'transjakarta-analytics',
+    name: 'CrowdEase',
+    tag: 'Public-Transit Data Platform',
+    period: 'Oct 2025',
+    cardImage: '/images/projects/transjakarta-analytics-front.webp',
+    stageImage: '/images/projects/transjakarta-analytics-inside.webp',
+    description:
+      "Started as <a href=\"https://crowdease-transjakarta.vercel.app/\" target=\"_blank\" rel=\"noopener\">a rider-facing mockup</a> of a TransJakarta app with bus-occupancy monitoring built in (a simulated mock, not a live feed), then extended into a real analytics backend on TransJakarta's own official GTFS feed (NestJS API, Next.js frontend, PostgreSQL, plus a Go microservice for spatial analysis) computing real service-frequency, coverage, and transfer-network metrics across all <strong>240 routes and 8,091 stops</strong>. It cross-references its own real schedule data with a separate bus-occupancy monitoring project (MPB-OMS) to flag routes that are both infrequent and crowded.",
+    highlights: [
+      'Go-based spatial-hash walkshed engine computes real 500m coverage for all 8,091 stops, avoiding a ~130M-calculation naive nearest-stop search',
+      'Batched ingestion pipeline loads all ~252,000 real GTFS rows (agency through shapes) into Postgres in under 600 round trips instead of one row at a time',
+      "Capacity Priority page cross-references real headway data against MPB-OMS's real bus-occupancy snapshot to flag routes that are both infrequent and crowded",
+      "Fleet View simulates bus positions along TransJakarta's own real shape polylines from the feed's real schedule, since the feed publishes no live vehicle-position API",
+    ],
+    tags: ['NestJS', 'Next.js', 'PostgreSQL', 'Go', 'Leaflet'],
+    url: 'https://transjakarta-web.onrender.com/',
   },
   {
     slug: 'trich-website',
