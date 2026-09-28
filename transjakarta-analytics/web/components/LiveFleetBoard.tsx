@@ -56,7 +56,7 @@ export default function LiveFleetBoard({ routes }: { routes: FleetRoute[] }) {
                   <span className="text-xs text-neutral-500">towards {direction.headsign}</span>
                 )}
               </div>
-              <span className="text-xs text-neutral-500">{occupancyPct}% full (MPB-OMS snapshot)</span>
+              <span className="text-xs text-neutral-500">{occupancyPct}% full (CrowdEase snapshot)</span>
             </div>
 
             {status ? (

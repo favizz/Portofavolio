@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 
 export const TJ_BLUE = "#1A4BA0";
 
@@ -29,29 +28,6 @@ export function RouteBadge({
       {shortName}
     </div>
   );
-}
-
-/** Polls the API's /health until it answers, so a sleeping free-tier backend shows as "connecting" instead of an error. */
-export function useApiReady() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = async () => {
-      try {
-        await api.health();
-        if (!stopped) setReady(true);
-      } catch {
-        if (!stopped) timer = setTimeout(tick, 4000);
-      }
-    };
-    tick();
-    return () => {
-      stopped = true;
-      clearTimeout(timer);
-    };
-  }, []);
-  return ready;
 }
 
 export function useNow(intervalMs = 5000) {

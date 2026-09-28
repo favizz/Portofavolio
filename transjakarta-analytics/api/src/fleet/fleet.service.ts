@@ -104,6 +104,27 @@ export class FleetService {
         [tripId]
       );
 
+      const { rows: allFreq } = await this.db.query(
+        `
+        SELECT f.start_time, f.end_time, f.headway_secs
+        FROM frequencies f
+        JOIN trips t ON t.trip_id = f.trip_id
+        WHERE t.route_id = $1 AND t.direction_id = $2
+        `,
+        [routeId, directionId]
+      );
+      // Average published headway per hour of day, over every trip of this route+direction (not just the representative one).
+      const hourlyHeadwaySecs: (number | null)[] = Array.from({ length: 24 }, (_, h) => {
+        const hs = allFreq
+          .filter((r) => {
+            const a = toSeconds(r.start_time);
+            const b = toSeconds(r.end_time);
+            return a !== null && b !== null && a < (h + 1) * 3600 && b > h * 3600;
+          })
+          .map((r) => r.headway_secs as number);
+        return hs.length ? Math.round(hs.reduce((x, y) => x + y, 0) / hs.length) : null;
+      });
+
       directions.push({
         directionId,
         shapeId,
@@ -111,6 +132,7 @@ export class FleetService {
         headsign,
         coordinates: coordRows.map((r) => [r.shape_pt_lat, r.shape_pt_lon]),
         tripDurationSecs,
+        hourlyHeadwaySecs,
         stops,
         headwayProfile: freqRows.map((r) => ({
           startTime: r.start_time,

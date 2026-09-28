@@ -6,7 +6,10 @@ import { api, type FleetRoute } from "@/lib/api";
 import { namedBusStatus } from "@/lib/fleetSimulation";
 import { assignBusesToDirections } from "@/lib/liveFleetAssignment";
 import type { MapBus, MapLine } from "./MapView";
-import { RouteBadge, TJ_BLUE, occupancyStyle, useApiReady, useNow } from "./shared";
+import { getSnapshotFleet, SNAPSHOT_ROUTE_IDS } from "@/lib/fleetData";
+import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
+import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
+import { RouteBadge, TJ_BLUE, occupancyStyle } from "./shared";
 
 const MapView = dynamic(() => import("./MapView"), {
   ssr: false,
@@ -33,11 +36,12 @@ function liveBuses(fleet: FleetRoute, color: string, now: Date) {
   });
 }
 
-function StatusChip({ ready }: { ready: boolean }) {
+function StatusChip({ state }: { state: "ok" | "loading" | "waking" }) {
+  const text = state === "ok" ? "Live simulation" : state === "loading" ? "Loading route..." : "Waking up the server...";
   return (
     <div className="absolute top-3 right-3 z-[500] bg-white rounded-lg shadow px-3 py-1.5 text-xs font-semibold text-neutral-800 flex items-center gap-2">
-      <span className={`w-2.5 h-2.5 rounded-full ${ready ? "bg-emerald-500" : "bg-amber-400 animate-pulse"}`} />
-      {ready ? "Bus Data Received" : "Connecting to bus data..."}
+      <span className={`w-2.5 h-2.5 rounded-full ${state === "ok" ? "bg-emerald-500" : "bg-amber-400 animate-pulse"}`} />
+      {text}
     </div>
   );
 }
@@ -72,18 +76,17 @@ function BottomNav({ onHome }: { onHome: () => void }) {
 }
 
 function HomeScreen({
-  ready,
   fleets,
   colors,
-  now,
+  clock,
   openRoutes,
 }: {
-  ready: boolean;
   fleets: FleetRoute[];
   colors: Record<string, string>;
-  now: Date;
+  clock: SimClock;
   openRoutes: () => void;
 }) {
+  const now = clock.now;
   const buses: MapBus[] = fleets.flatMap((f) =>
     liveBuses(f, `#${colors[f.routeShortName] ?? "666666"}`, now).map((b) => ({
       key: b.bus.busId,
@@ -117,7 +120,8 @@ function HomeScreen({
       </div>
       <div className="relative flex-1 min-h-0">
         <MapView lines={lines} buses={buses} fit={false} />
-        <StatusChip ready={ready} />
+        <StatusChip state="ok" />
+        <ClockControl clock={clock} />
       </div>
       <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
         <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
@@ -131,18 +135,28 @@ function HomeScreen({
           </button>
         </div>
         <div className="grid grid-cols-4 gap-2 mt-3">
-          {quick.map((q) => (
-            <button
-              key={q.label}
-              onClick={q.onClick}
-              className={`flex flex-col items-center gap-1 text-[11px] text-neutral-700 ${q.onClick ? "" : "opacity-60"}`}
-            >
-              <span className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-xl" style={{ color: TJ_BLUE }}>
-                {q.icon}
-              </span>
-              {q.label}
-            </button>
-          ))}
+          {quick.map((q) =>
+            q.onClick ? (
+              <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-1 text-[11px] font-extrabold" style={{ color: TJ_BLUE }}>
+                <span className="relative">
+                  <span className="absolute inset-0 rounded-2xl animate-ping bg-blue-400/40" />
+                  <span
+                    className="relative w-14 h-14 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg ring-4 ring-blue-200"
+                    style={{ background: TJ_BLUE }}
+                  >
+                    {q.icon}
+                  </span>
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5">TRY</span>
+                </span>
+                {q.label}
+              </button>
+            ) : (
+              <div key={q.label} className="flex flex-col items-center gap-1 text-[11px] text-neutral-400">
+                <span className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center text-xl grayscale">{q.icon}</span>
+                {q.label}
+              </div>
+            )
+          )}
         </div>
       </div>
     </>
@@ -190,21 +204,110 @@ function RoutesScreen({ routes, back, pick }: { routes: AppRoute[]; back: () => 
   );
 }
 
-function DetailScreen({ route, ready, back, now }: { route: AppRoute; ready: boolean; back: () => void; now: Date }) {
+const LEVEL_COLOR: Record<Level, string> = { comfortable: "#22c55e", moderate: "#f59e0b", crowded: "#ef4444" };
+const LEVEL_TEXT: Record<Level, string> = { comfortable: "Comfortable", moderate: "Moderately busy", crowded: "Crowded" };
+
+function AdviceCard({ advice }: { advice: ReturnType<typeof adviseRide> }) {
+  const shown = advice.hours.filter((h) => h.hour >= 5 && h.hour <= 22);
+  const nowHour = advice.hours[advice.nowHour];
+  return (
+    <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
+      <div className="flex items-center justify-between">
+        <div className="font-extrabold text-[15px]">Best time to ride today</div>
+        <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-white text-neutral-600">{advice.weekend ? "Weekend" : "Weekday"}</span>
+      </div>
+      {!advice.hasData ? (
+        <div className="text-xs text-neutral-500 mt-2">Not enough published schedule data on this route to recommend a time.</div>
+      ) : (
+        <>
+          <div className="mt-2 text-sm">
+            <span className="font-bold text-emerald-600">Best: </span>
+            <span className="font-semibold">{advice.best.map(fmtRange).join(", ")}</span>
+            {advice.bestHeadwayMin !== null && <span className="text-neutral-500"> (a bus about every {advice.bestHeadwayMin} min)</span>}
+          </div>
+          {advice.avoid.length > 0 && (
+            <div className="mt-1 text-sm">
+              <span className="font-bold text-red-600">Avoid: </span>
+              <span className="font-semibold">{advice.avoid.map(fmtRange).join(", ")}</span>
+              <span className="text-neutral-500"> (peak hours)</span>
+            </div>
+          )}
+          {nowHour?.level && (
+            <div className="mt-1 text-xs text-neutral-600">
+              At {String(advice.nowHour).padStart(2, "0")}:00: <b style={{ color: LEVEL_COLOR[nowHour.level] }}>{LEVEL_TEXT[nowHour.level]}</b>
+            </div>
+          )}
+          <div className="mt-3 flex items-end gap-[3px] h-14">
+            {shown.map((h) => (
+              <div key={h.hour} className="flex-1 flex flex-col items-center justify-end h-full">
+                <div
+                  className={`w-full rounded-sm ${h.hour === advice.nowHour ? "ring-2 ring-offset-1 ring-neutral-800" : ""}`}
+                  style={{
+                    height: h.index === null ? 4 : Math.max(6, Math.min(1, h.index) * 52),
+                    background: h.level ? LEVEL_COLOR[h.level] : "#d4d4d4",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-[9px] text-neutral-400 mt-1">
+            <span>05:00</span>
+            <span>09:00</span>
+            <span>13:00</span>
+            <span>17:00</span>
+            <span>22:00</span>
+          </div>
+          <div className="text-[10px] text-neutral-500 mt-2 leading-snug">
+            Estimate, not measured. Combines this route&apos;s real published bus frequency{advice.routeWide ? " (route-wide, this direction publishes little)" : ""} with a typical
+            Jakarta commuter demand pattern (weekday peaks about 06:00-09:00 and 16:00-20:00). Grey bars: no published service.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => void; clock: SimClock }) {
+  const now = clock.now;
   const [fleet, setFleet] = useState<FleetRoute | null>(null);
   const [failed, setFailed] = useState(false);
   const [dir, setDir] = useState(0);
   const color = `#${route.route_color}`;
 
   useEffect(() => {
-    if (!ready) return;
-    setFleet(null);
-    setFailed(false);
     setDir(0);
-    api.fleet(route.route_id).then(setFleet).catch(() => setFailed(true));
-  }, [route.route_id, ready]);
+    setFailed(false);
+    const snap = getSnapshotFleet(route.route_id);
+    if (snap) {
+      setFleet(snap);
+      return;
+    }
+    setFleet(null);
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let tries = 0;
+    const load = () =>
+      api
+        .fleet(route.route_id)
+        .then((f) => {
+          if (stopped) return;
+          setFailed(false);
+          setFleet(f);
+        })
+        .catch(() => {
+          if (stopped) return;
+          setFailed(true);
+          if (++tries < 40) timer = setTimeout(load, 4000);
+        });
+    load();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [route.route_id]);
 
   const direction = fleet?.directions[dir];
+  const advice = useMemo(() => (fleet && fleet.directions.length ? adviseRide(fleet.directions, dir, now) : null), [fleet, dir, now]);
   const live = useMemo(() => (fleet ? liveBuses(fleet, color, now) : []), [fleet, color, now]);
   const inDir = live.filter((b) => b.directionIndex === dir);
 
@@ -268,7 +371,8 @@ function DetailScreen({ route, ready, back, now }: { route: AppRoute; ready: boo
       </div>
       <div className="relative h-[34%] shrink-0">
         <MapView lines={lines} stops={stops} buses={mapBuses} fit />
-        <StatusChip ready={ready && !failed} />
+        <StatusChip state={fleet ? "ok" : failed ? "waking" : "loading"} />
+        <ClockControl clock={clock} />
       </div>
       <div className="-mt-4 relative z-[600] flex-1 min-h-0 flex flex-col rounded-t-3xl bg-white shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
         <div className="px-4 pt-2 shrink-0">
@@ -297,17 +401,17 @@ function DetailScreen({ route, ready, back, now }: { route: AppRoute; ready: boo
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <div className="text-lg font-extrabold mt-3">Bus Arrival</div>
+          {advice && <AdviceCard advice={advice} />}
+          <div className="text-lg font-extrabold mt-4">Bus Arrival</div>
           <div className="text-[11px] text-neutral-500 mt-1 mb-2">
             Demo: bus positions are simulated from TransJakarta&apos;s real published schedule (no live GPS exists). Occupancy is
-            CrowdEase&apos;s own addition, from a real MPB-OMS snapshot.
+            CrowdEase&apos;s own addition, from a real snapshot of its bus counts.
           </div>
-          {!ready && <div className="text-sm text-neutral-500 py-6">Connecting to bus data. The server wakes up in under a minute.</div>}
-          {ready && !fleet && !failed && <div className="text-sm text-neutral-500 py-6">Loading route...</div>}
-          {failed && <div className="text-sm text-red-600 py-6">Could not load this route. Try again shortly.</div>}
+          {!fleet && !failed && <div className="text-sm text-neutral-500 py-6">Loading route...</div>}
+          {failed && <div className="text-sm text-neutral-500 py-6">Waking up the server, this can take up to a minute. Retrying automatically...</div>}
           {direction && live.length === 0 && (
             <div className="text-xs text-neutral-500 mb-2">
-              No CrowdEase occupancy sensors on this route yet. The stops below are TransJakarta&apos;s real published data.
+              CrowdEase has no occupancy counts on this route yet. The stops below are TransJakarta&apos;s real published data.
             </div>
           )}
           {direction?.stops.map((stop, i) => {
@@ -348,23 +452,17 @@ function DetailScreen({ route, ready, back, now }: { route: AppRoute; ready: boo
 export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
   const [screen, setScreen] = useState<Screen>("home");
   const [selected, setSelected] = useState<AppRoute | null>(null);
-  const [fleets, setFleets] = useState<FleetRoute[]>([]);
-  const ready = useApiReady();
-  const now = useNow();
+  const clock = useSimClock();
 
   const colors = useMemo(() => Object.fromEntries(routes.map((r) => [r.route_short_name, r.route_color])), [routes]);
-
-  useEffect(() => {
-    if (!ready) return;
-    Promise.all(MONITORED.map((id) => api.fleet(id))).then(setFleets).catch(() => setFleets([]));
-  }, [ready]);
+  const fleets = useMemo(() => SNAPSHOT_ROUTE_IDS.map((id) => getSnapshotFleet(id)).filter((f): f is FleetRoute => !!f), []);
 
   return (
     <div className="min-h-dvh flex items-center justify-center md:py-8">
       <div className="relative w-full max-w-[400px] h-dvh md:h-[780px] md:rounded-[2.2rem] md:border-[6px] md:border-neutral-800 md:shadow-2xl overflow-hidden flex flex-col bg-white">
         {screen === "home" && (
           <>
-            <HomeScreen ready={ready} fleets={fleets} colors={colors} now={now} openRoutes={() => setScreen("routes")} />
+            <HomeScreen fleets={fleets} colors={colors} clock={clock} openRoutes={() => setScreen("routes")} />
             <BottomNav onHome={() => setScreen("home")} />
           </>
         )}
@@ -378,7 +476,7 @@ export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
             }}
           />
         )}
-        {screen === "detail" && selected && <DetailScreen route={selected} ready={ready} now={now} back={() => setScreen("routes")} />}
+        {screen === "detail" && selected && <DetailScreen route={selected} clock={clock} back={() => setScreen("routes")} />}
       </div>
     </div>
   );

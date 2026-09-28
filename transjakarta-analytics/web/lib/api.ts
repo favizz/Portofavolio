@@ -80,6 +80,7 @@ export interface FleetDirection {
   headsign: string | null;
   coordinates: [number, number][];
   tripDurationSecs: number | null;
+  hourlyHeadwaySecs?: (number | null)[];
   stops: { stopId: string; stopName: string; lat: number; lon: number; elapsedSecs: number | null }[];
   headwayProfile: FleetHeadwayWindow[];
 }

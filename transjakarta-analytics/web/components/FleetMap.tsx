@@ -56,7 +56,7 @@ export default function FleetMap({ routes }: { routes: FleetRoute[] }) {
 
       {busMarkers.length === 0 && (
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-4 py-2 text-xs text-neutral-400">
-          None of MPB-OMS's monitored buses have a real published service window covering the current time, so
+          None of CrowdEase's monitored buses have a real published service window covering the current time, so
           nothing is shown right now.
         </div>
       )}
@@ -95,7 +95,7 @@ export default function FleetMap({ routes }: { routes: FleetRoute[] }) {
                   </div>
                   <div>Now near {status.currentStopName ?? "the route's start"}</div>
                   {status.nextStopName && <div>Next: {status.nextStopName}</div>}
-                  <div>~{occupancyPct}% occupancy (MPB-OMS snapshot)</div>
+                  <div>~{occupancyPct}% occupancy (CrowdEase snapshot)</div>
                   <div className="text-neutral-500">Simulated from real schedule, not live GPS</div>
                 </div>
               </Tooltip>

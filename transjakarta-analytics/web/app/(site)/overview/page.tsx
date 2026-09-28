@@ -85,7 +85,7 @@ export default async function OverviewPage() {
         >
           <div className="font-medium mb-1">Capacity Priority</div>
           <div className="text-sm text-neutral-400">
-            Routes that are both infrequent and crowded, from real headways plus MPB-OMS occupancy.
+            Routes that are both infrequent and crowded, from real headways plus CrowdEase occupancy.
           </div>
         </Link>
         <Link

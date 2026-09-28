@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MPB_OMS_SNAPSHOT_CAPTURED_AT, MPB_OMS_SOURCE_URL } from "@/lib/mpbOmsSnapshot";
+import { CROWDEASE_SNAPSHOT_CAPTURED_AT } from "@/lib/crowdEaseSnapshot";
 
 export default function CapacityExplainer() {
   const [open, setOpen] = useState(false);
@@ -23,16 +23,12 @@ export default function CapacityExplainer() {
             TransJakarta&apos;s own published GTFS feed, same as the rest of this dashboard.
           </p>
           <p>
-            <strong className="text-amber-400">What&apos;s a snapshot, not live:</strong> occupancy comes from{" "}
-            <a href={MPB_OMS_SOURCE_URL} target="_blank" rel="noopener" className="text-amber-400 underline">
-              MPB-OMS
-            </a>
-            , a separate real-time bus-occupancy monitoring project (webcam + YOLO people-counting). MPB-OMS
-            doesn&apos;t currently have a live deployed API to pull from, so the occupancy figures here are a
-            fixed snapshot of its own real seed data (captured {MPB_OMS_SNAPSHOT_CAPTURED_AT}), not a live feed.
+            <strong className="text-amber-400">What&apos;s a snapshot, not live:</strong> occupancy comes from CrowdEase&apos;s bus-occupancy
+            counting (webcam + YOLO people-counting). There is no live deployed feed to pull from, so the
+            occupancy figures here are a fixed snapshot of its own real seed data (captured {CROWDEASE_SNAPSHOT_CAPTURED_AT}), not a live feed.
           </p>
           <p>
-            <strong className="text-amber-400">Scope:</strong> MPB-OMS only instruments <strong>5 buses across 3
+            <strong className="text-amber-400">Scope:</strong> CrowdEase only instruments <strong>5 buses across 3
             routes</strong> (2, 2A, 7F) &mdash; not TransJakarta&apos;s full 240-route network. The priority
             ranking below is only meaningful for those 3 routes; every other route&apos;s occupancy is genuinely
             unknown, not assumed to be fine.

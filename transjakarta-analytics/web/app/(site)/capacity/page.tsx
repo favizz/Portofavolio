@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { routeOccupancyFromSnapshot } from "@/lib/mpbOmsSnapshot";
+import { routeOccupancyFromSnapshot } from "@/lib/crowdEaseSnapshot";
 import CapacityExplainer from "@/components/CapacityExplainer";
 
 export const dynamic = "force-dynamic";
@@ -36,11 +36,7 @@ export default async function CapacityPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Capacity Priority</h1>
         <p className="text-neutral-400 mt-2 text-sm max-w-2xl">
-          Combines this site&apos;s real service-frequency analysis with occupancy data from{" "}
-          <a href="https://github.com/favizz/MPB-OMS" target="_blank" rel="noopener" className="underline">
-            MPB-OMS
-          </a>
-          , a separate bus-occupancy monitoring project, to flag routes that are both running infrequently and
+          Combines this site&apos;s real service-frequency analysis with CrowdEase&apos;s bus-occupancy data, to flag routes that are both running infrequently and
           running crowded &mdash; a genuine capacity-planning signal, not just a frequency gap.
         </p>
       </div>
@@ -59,7 +55,7 @@ export default async function CapacityPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-teal-900/40 bg-teal-950/10 p-5 text-sm text-teal-400">
-          None of MPB-OMS&apos;s 3 monitored routes currently fail the frequency standard while showing high
+          None of CrowdEase&apos;s 3 monitored routes currently fail the frequency standard while showing high
           occupancy.
         </div>
       )}
@@ -72,7 +68,7 @@ export default async function CapacityPage() {
               <th className="text-left px-4 py-2 font-medium">Name</th>
               <th className="text-right px-4 py-2 font-medium">Avg headway</th>
               <th className="text-right px-4 py-2 font-medium">Frequency standard</th>
-              <th className="text-right px-4 py-2 font-medium">Occupancy (MPB-OMS snapshot)</th>
+              <th className="text-right px-4 py-2 font-medium">Occupancy (CrowdEase snapshot)</th>
               <th className="text-right px-4 py-2 font-medium">Buses monitored</th>
             </tr>
           </thead>

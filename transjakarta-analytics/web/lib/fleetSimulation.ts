@@ -88,11 +88,17 @@ function phaseForIndex(direction: FleetDirection, busIndex: number, now: Date): 
   if (!direction.tripDurationSecs || direction.coordinates.length < 2) return null;
   const nowSecondsOfDay = jakartaSecondsOfDay(now);
   const window = activeWindow(direction.headwayProfile, nowSecondsOfDay);
-  if (!window) return null;
-
-  const windowStart = toSecondsOfDay(window.startTime);
+  let windowStart = 0;
+  let headway = 0;
+  if (window) {
+    windowStart = toSecondsOfDay(window.startTime);
+    headway = window.headwaySecs;
+  } else {
+    const hourly = direction.hourlyHeadwaySecs?.[Math.floor(nowSecondsOfDay / 3600)];
+    if (!hourly) return null;
+    headway = hourly;
+  }
   const duration = direction.tripDurationSecs;
-  const headway = window.headwaySecs;
   return ((nowSecondsOfDay - windowStart + busIndex * headway) % duration + duration) % duration;
 }
 
