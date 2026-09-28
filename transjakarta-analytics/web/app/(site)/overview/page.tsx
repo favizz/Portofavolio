@@ -28,7 +28,7 @@ export default async function OverviewPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Network Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">How it works</h1>
         <p className="text-neutral-400 mt-2 max-w-2xl text-sm leading-relaxed">
           Every number below is computed directly from TransJakarta&apos;s own real, currently-published
           GTFS feed — not synthetic or illustrative data. This tool answers a real planning question:
@@ -77,6 +77,24 @@ export default async function OverviewPage() {
           <div className="font-medium mb-1">Transfer Network</div>
           <div className="text-sm text-neutral-400">
             Which routes share stops (and how much) — the real transfer graph.
+          </div>
+        </Link>
+        <Link
+          href="/capacity"
+          className="rounded-xl border border-neutral-800 p-5 hover:border-neutral-600 transition-colors"
+        >
+          <div className="font-medium mb-1">Capacity Priority</div>
+          <div className="text-sm text-neutral-400">
+            Routes that are both infrequent and crowded, from real headways plus MPB-OMS occupancy.
+          </div>
+        </Link>
+        <Link
+          href="/fleet"
+          className="rounded-xl border border-neutral-800 p-5 hover:border-neutral-600 transition-colors"
+        >
+          <div className="font-medium mb-1">Fleet View</div>
+          <div className="text-sm text-neutral-400">
+            The monitored buses on their real route paths, positions simulated from the real schedule.
           </div>
         </Link>
       </div>

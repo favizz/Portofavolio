@@ -51,6 +51,7 @@ export const experience = [
     cardImage: '/images/career/tmmin-front.webp',
     stageImage: '/images/career/tmmin-inside.webp',
     tags: ['Python'],
+    relatedProjectSlug: null,
     bullets: [
       'Built a Python pipeline to extract and reconcile <strong>8,000+ customs and invoice records</strong> from PDFs',
       'Automated OCR-based data extraction and validation, <strong>cutting manual reconciliation effort by 70%+</strong>',
@@ -105,7 +106,7 @@ export const experience = [
     cardImage: '/images/career/itb-front.webp',
     stageImage: '/images/career/itb-inside.webp',
     tags: [],
-    relatedProjectSlug: 'netflow',
+    relatedProjectSlug: ['netflow', 'fraud-detection-system'],
     bullets: [
       'GPA <strong>3.62</strong> out of 4.00 (Cumlaude)',
       'Coursework: Algorithms & Data Structures, Database Systems, Software Engineering, Information Security, Data Analytics, and Artificial Intelligence',

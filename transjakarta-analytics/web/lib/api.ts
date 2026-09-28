@@ -80,7 +80,7 @@ export interface FleetDirection {
   headsign: string | null;
   coordinates: [number, number][];
   tripDurationSecs: number | null;
-  stops: { stopId: string; stopName: string; elapsedSecs: number | null }[];
+  stops: { stopId: string; stopName: string; lat: number; lon: number; elapsedSecs: number | null }[];
   headwayProfile: FleetHeadwayWindow[];
 }
 
@@ -93,6 +93,7 @@ export interface FleetRoute {
 }
 
 export const api = {
+  health: () => get<{ status: string }>('/health'),
   routes: () => get<RouteSummary[]>('/routes'),
   headwaySummary: () => get<HeadwaySummary>('/headway/summary'),
   coverageSummary: () => get<CoverageSummary>('/coverage/summary'),

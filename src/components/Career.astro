@@ -1,6 +1,6 @@
 ---
 import { experience } from '../data/experience';
-import { findRelatedProjectForJob } from '../data/relations';
+import { findRelatedProjectsForJob } from '../data/relations';
 
 const MONTHS: Record<string, number> = {
   Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
@@ -70,7 +70,7 @@ const sortedExperience = [...experience].sort(
       <div data-expand-default>
         {
           sortedExperience.map((job) => {
-            const related = findRelatedProjectForJob(job);
+            const related = findRelatedProjectsForJob(job);
             return (
               <article
                 class="expand-card group w-[300px] flex-shrink-0"
@@ -170,20 +170,25 @@ const sortedExperience = [...experience].sort(
                     ))}
                   </ul>
 
-                  {related && (
+                  {related.length > 0 && (
                     <p class="mt-5 text-sm">
                       <span class="font-semibold uppercase tracking-wide text-text-muted">
-                        Related project:
+                        {related.length > 1 ? 'Related projects:' : 'Related project:'}
                       </span>{' '}
-                      <button
-                        type="button"
-                        data-expand-ignore
-                        data-open-section="project"
-                        data-open-slug={related.slug}
-                        class="text-cta cursor-pointer"
-                      >
-                        {related.name}
-                      </button>
+                      {related.map((project, i) => (
+                        <>
+                          {i > 0 && <span class="text-text-muted">, </span>}
+                          <button
+                            type="button"
+                            data-expand-ignore
+                            data-open-section="project"
+                            data-open-slug={project.slug}
+                            class="text-cta cursor-pointer"
+                          >
+                            {project.name}
+                          </button>
+                        </>
+                      ))}
                     </p>
                   )}
                 </div>

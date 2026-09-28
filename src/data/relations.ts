@@ -38,13 +38,20 @@ export function findRelatedProject(tags: string[]): { slug: string; name: string
  * make that technology's tile on the Technology page link to ITB too).
  * Falls back to the normal tag-based match when no override is set.
  */
-export function findRelatedProjectForJob(job: {
+export function findRelatedProjectsForJob(job: {
   tags: string[];
-  relatedProjectSlug?: string;
-}): { slug: string; name: string } | null {
+  relatedProjectSlug?: string | string[] | null;
+}): { slug: string; name: string }[] {
+  // null means "explicitly none": a real tag (e.g. TMMIN's Python) exists but
+  // the user says no portfolio project is actually related to that job.
+  if (job.relatedProjectSlug === null) return [];
   if (job.relatedProjectSlug) {
-    const project = projects.find((p) => p.slug === job.relatedProjectSlug);
-    if (project) return { slug: project.slug, name: project.name };
+    const slugs = Array.isArray(job.relatedProjectSlug) ? job.relatedProjectSlug : [job.relatedProjectSlug];
+    return slugs.flatMap((slug) => {
+      const project = projects.find((p) => p.slug === slug);
+      return project ? [{ slug: project.slug, name: project.name }] : [];
+    });
   }
-  return findRelatedProject(job.tags);
+  const byTag = findRelatedProject(job.tags);
+  return byTag ? [byTag] : [];
 }

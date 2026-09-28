@@ -72,7 +72,7 @@ export class FleetService {
 
       const { rows: stopTimeRows } = await this.db.query(
         `
-        SELECT st.arrival_time, st.departure_time, s.stop_id, s.stop_name
+        SELECT st.arrival_time, st.departure_time, s.stop_id, s.stop_name, s.stop_lat, s.stop_lon
         FROM stop_times st
         JOIN stops s ON s.stop_id = st.stop_id
         WHERE st.trip_id = $1
@@ -93,6 +93,8 @@ export class FleetService {
               return {
                 stopId: r.stop_id,
                 stopName: r.stop_name,
+                lat: r.stop_lat,
+                lon: r.stop_lon,
                 elapsedSecs: secs !== null ? secs - firstSecs : null,
               };
             });
