@@ -80,26 +80,57 @@ export interface SimulatedBus {
 
 const MAX_SIMULATED_BUSES = 20;
 
-/** The real phase (seconds into the representative trip's cycle) for the
- * `busIndex`-th bus spaced `headwaySecs` apart, or `null` if `now` falls
- * outside every real headway window this direction's representative trip
- * actually publishes (i.e. there's no real basis to place anything). */
-function phaseForIndex(direction: FleetDirection, busIndex: number, now: Date): number | null {
+interface Timing {
+  windowStart: number;
+  headway: number;
+}
+
+/** Real published headway if there is one for `now`, else (demo only, 05:00-22:00) a fallback so every route shows a running fleet. */
+function resolveTiming(direction: FleetDirection, now: Date, fallbackHeadwaySecs?: number): Timing | null {
+  const secs = jakartaSecondsOfDay(now);
+  const window = activeWindow(direction.headwayProfile, secs);
+  if (window) return { windowStart: toSecondsOfDay(window.startTime), headway: window.headwaySecs };
+  const hourly = direction.hourlyHeadwaySecs?.[Math.floor(secs / 3600)];
+  if (hourly) return { windowStart: 0, headway: hourly };
+  const hour = Math.floor(secs / 3600);
+  if (fallbackHeadwaySecs && hour >= 5 && hour < 22) return { windowStart: 0, headway: fallbackHeadwaySecs };
+  return null;
+}
+
+/** Seconds into the representative trip's cycle for the `busIndex`-th bus spaced one headway apart, or `null` when nothing is running. */
+function phaseForIndex(direction: FleetDirection, busIndex: number, now: Date, fallbackHeadwaySecs?: number): number | null {
   if (!direction.tripDurationSecs || direction.coordinates.length < 2) return null;
-  const nowSecondsOfDay = jakartaSecondsOfDay(now);
-  const window = activeWindow(direction.headwayProfile, nowSecondsOfDay);
-  let windowStart = 0;
-  let headway = 0;
-  if (window) {
-    windowStart = toSecondsOfDay(window.startTime);
-    headway = window.headwaySecs;
-  } else {
-    const hourly = direction.hourlyHeadwaySecs?.[Math.floor(nowSecondsOfDay / 3600)];
-    if (!hourly) return null;
-    headway = hourly;
-  }
+  const timing = resolveTiming(direction, now, fallbackHeadwaySecs);
+  if (!timing) return null;
   const duration = direction.tripDurationSecs;
-  return ((nowSecondsOfDay - windowStart + busIndex * headway) % duration + duration) % duration;
+  const nowSecs = jakartaSecondsOfDay(now);
+  return ((nowSecs - timing.windowStart + busIndex * timing.headway) % duration + duration) % duration;
+}
+
+export interface FleetBus {
+  index: number;
+  phase: number; // seconds into the trip cycle
+  position: [number, number];
+  currentStopIndex: number | null;
+}
+
+/** The running fleet for one direction at `now`: one bus per headway along the trip. Positions come from the real schedule, so they are simulated, not GPS. */
+export function simulatedFleet(direction: FleetDirection, now: Date, opts: { fallbackHeadwaySecs?: number; max?: number } = {}): FleetBus[] {
+  if (!direction.tripDurationSecs || direction.coordinates.length < 2) return [];
+  const timing = resolveTiming(direction, now, opts.fallbackHeadwaySecs);
+  if (!timing) return [];
+  const count = Math.min(opts.max ?? 10, Math.max(1, Math.round(direction.tripDurationSecs / timing.headway)));
+  const index = indexPolyline(direction.coordinates);
+  const buses: FleetBus[] = [];
+  for (let i = 0; i < count; i++) {
+    const phase = phaseForIndex(direction, i, now, opts.fallbackHeadwaySecs)!;
+    let currentStopIndex: number | null = null;
+    direction.stops.forEach((st, k) => {
+      if (st.elapsedSecs !== null && st.elapsedSecs <= phase) currentStopIndex = k;
+    });
+    buses.push({ index: i, phase, position: pointAtFraction(direction.coordinates, index, phase / direction.tripDurationSecs), currentStopIndex });
+  }
+  return buses;
 }
 
 /**
@@ -162,4 +193,9 @@ export function namedBusStatus(direction: FleetDirection, busIndex: number, now:
     nextStopName: next?.stopName ?? null,
     etaToNextStopSecs: next ? next.elapsedSecs - phase : null,
   };
+}
+
+/** Minutes-level view of how often a bus comes right now, or null when nothing runs. */
+export function currentHeadwaySecs(direction: FleetDirection, now: Date, fallbackHeadwaySecs?: number): number | null {
+  return resolveTiming(direction, now, fallbackHeadwaySecs)?.headway ?? null;
 }

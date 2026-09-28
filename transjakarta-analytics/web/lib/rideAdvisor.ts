@@ -44,6 +44,12 @@ export interface Advice {
   hasData: boolean;
 }
 
+/** Typical-commuter demand (0-1) for the Jakarta hour and day of `now`. An assumption, not data. */
+export function demandAt(now: Date): number {
+  const { day, hour } = jakartaNow(now);
+  return (day === 0 || day === 6 ? WEEKEND_DEMAND : WEEKDAY_DEMAND)[hour];
+}
+
 function jakartaNow(now: Date) {
   const d = new Date(now.getTime() + 7 * 3600 * 1000);
   return { day: d.getUTCDay(), hour: d.getUTCHours() };

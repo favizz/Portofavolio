@@ -2,14 +2,14 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { api, type FleetRoute } from "@/lib/api";
-import { namedBusStatus } from "@/lib/fleetSimulation";
-import { assignBusesToDirections } from "@/lib/liveFleetAssignment";
+import { api, type FleetDirection, type FleetRoute } from "@/lib/api";
+import { currentHeadwaySecs, simulatedFleet } from "@/lib/fleetSimulation";
+import { BUS_CAPACITY, simulatedOccupancy } from "@/lib/fleetOccupancy";
 import type { MapBus, MapLine } from "./MapView";
 import { getSnapshotFleet, SNAPSHOT_ROUTE_IDS } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
 import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
-import { RouteBadge, TJ_BLUE, occupancyStyle } from "./shared";
+import { RouteBadge, TJ_BLUE } from "./shared";
 
 const MapView = dynamic(() => import("./MapView"), {
   ssr: false,
@@ -26,14 +26,17 @@ export interface AppRoute {
 const MONITORED = ["2", "2A", "7F"];
 type Screen = "home" | "routes" | "detail";
 
-function liveBuses(fleet: FleetRoute, color: string, now: Date) {
-  return assignBusesToDirections(fleet).flatMap(({ bus, directionIndex, busIndexWithinDirection }) => {
-    const direction = fleet.directions[directionIndex];
-    const status = direction ? namedBusStatus(direction, busIndexWithinDirection, now) : null;
-    if (!status) return [];
-    const pct = Math.round((bus.baseOccupancy / bus.capacity) * 100);
-    return [{ bus, directionIndex, status, color, pct, routeShortName: fleet.routeShortName }];
-  });
+function occColors(count: number) {
+  const pct = count / BUS_CAPACITY;
+  if (pct >= 0.8) return { solid: "#dc2626", soft: "#fee2e2", text: "#b91c1c", label: "Crowded" };
+  if (pct >= 0.5) return { solid: "#d97706", soft: "#fef3c7", text: "#b45309", label: "Busy" };
+  return { solid: "#15803d", soft: "#dcfce7", text: "#15803d", label: "Seats available" };
+}
+
+/** Route-wide average of the published hourly headways, used only so every route shows a running fleet in the demo. */
+function fallbackHeadway(directions: FleetDirection[]): number {
+  const vals = directions.flatMap((d) => (d.hourlyHeadwaySecs ?? []).filter((v): v is number => v !== null));
+  return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 900;
 }
 
 function StatusChip({ state }: { state: "ok" | "loading" | "waking" }) {
@@ -87,15 +90,24 @@ function HomeScreen({
   openRoutes: () => void;
 }) {
   const now = clock.now;
-  const buses: MapBus[] = fleets.flatMap((f) =>
-    liveBuses(f, `#${colors[f.routeShortName] ?? "666666"}`, now).map((b) => ({
-      key: b.bus.busId,
-      label: b.routeShortName,
-      position: b.status.position,
-      color: b.color,
-      tooltip: `${b.bus.busId} · ${b.pct}% full`,
-    }))
-  );
+  const buses: MapBus[] = fleets.flatMap((f) => {
+    const color = `#${colors[f.routeShortName] ?? "666666"}`;
+    const fb = fallbackHeadway(f.directions);
+    return f.directions.flatMap((d) =>
+      simulatedFleet(d, now, { fallbackHeadwaySecs: fb, max: 3 }).map((b) => {
+        const n = simulatedOccupancy(`${f.routeShortName}${d.directionId}`, b.index, b.currentStopIndex, now);
+        return {
+          key: `${f.routeShortName}-${d.directionId}-${b.index}`,
+          label: f.routeShortName,
+          position: b.position,
+          color,
+          badge: `${n}/${BUS_CAPACITY}`,
+          badgeBg: occColors(n).solid,
+          tooltip: `Route ${f.routeShortName} · ${n}/${BUS_CAPACITY} seats taken`,
+        };
+      })
+    );
+  });
   const lines: MapLine[] = fleets.flatMap((f) =>
     f.directions.map((d) => ({ positions: d.coordinates, color: `#${colors[f.routeShortName] ?? "666666"}` }))
   );
@@ -207,61 +219,50 @@ function RoutesScreen({ routes, back, pick }: { routes: AppRoute[]; back: () => 
 const LEVEL_COLOR: Record<Level, string> = { comfortable: "#22c55e", moderate: "#f59e0b", crowded: "#ef4444" };
 const LEVEL_TEXT: Record<Level, string> = { comfortable: "Comfortable", moderate: "Moderately busy", crowded: "Crowded" };
 
-function AdviceCard({ advice }: { advice: ReturnType<typeof adviseRide> }) {
+function BestTime({ advice }: { advice: ReturnType<typeof adviseRide> }) {
+  const [open, setOpen] = useState(false);
+  if (!advice.hasData) return null;
   const shown = advice.hours.filter((h) => h.hour >= 5 && h.hour <= 22);
   const nowHour = advice.hours[advice.nowHour];
   return (
-    <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
-      <div className="flex items-center justify-between">
-        <div className="font-extrabold text-[15px]">Best time to ride today</div>
-        <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-white text-neutral-600">{advice.weekend ? "Weekend" : "Weekday"}</span>
-      </div>
-      {!advice.hasData ? (
-        <div className="text-xs text-neutral-500 mt-2">Not enough published schedule data on this route to recommend a time.</div>
-      ) : (
-        <>
-          <div className="mt-2 text-sm">
-            <span className="font-bold text-emerald-600">Best: </span>
-            <span className="font-semibold">{advice.best.map(fmtRange).join(", ")}</span>
-            {advice.bestHeadwayMin !== null && <span className="text-neutral-500"> (a bus about every {advice.bestHeadwayMin} min)</span>}
+    <div className="mt-3 rounded-xl bg-blue-50/70">
+      <button onClick={() => setOpen((o) => !o)} className="w-full text-left px-3 py-2.5 flex items-center gap-2">
+        <div className="flex-1 min-w-0 text-[13px] leading-snug">
+          <div>
+            <b className="text-emerald-600">Best time to ride:</b> <b>{advice.best.map(fmtRange).join(", ")}</b>
           </div>
           {advice.avoid.length > 0 && (
-            <div className="mt-1 text-sm">
-              <span className="font-bold text-red-600">Avoid: </span>
-              <span className="font-semibold">{advice.avoid.map(fmtRange).join(", ")}</span>
-              <span className="text-neutral-500"> (peak hours)</span>
+            <div className="text-neutral-600">
+              <b className="text-red-600">Avoid:</b> {advice.avoid.map(fmtRange).join(", ")}
             </div>
           )}
+        </div>
+        <span className="text-neutral-400 text-lg">{open ? "⌃" : "⌄"}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3">
           {nowHour?.level && (
-            <div className="mt-1 text-xs text-neutral-600">
-              At {String(advice.nowHour).padStart(2, "0")}:00: <b style={{ color: LEVEL_COLOR[nowHour.level] }}>{LEVEL_TEXT[nowHour.level]}</b>
+            <div className="text-xs text-neutral-600">
+              At {String(advice.nowHour).padStart(2, "0")}:00: <b style={{ color: LEVEL_COLOR[nowHour.level] }}>{LEVEL_TEXT[nowHour.level]}</b> ({advice.weekend ? "weekend" : "weekday"})
             </div>
           )}
-          <div className="mt-3 flex items-end gap-[3px] h-14">
+          <div className="mt-2 flex items-end gap-[3px] h-12">
             {shown.map((h) => (
-              <div key={h.hour} className="flex-1 flex flex-col items-center justify-end h-full">
+              <div key={h.hour} className="flex-1 flex flex-col justify-end h-full">
                 <div
                   className={`w-full rounded-sm ${h.hour === advice.nowHour ? "ring-2 ring-offset-1 ring-neutral-800" : ""}`}
-                  style={{
-                    height: h.index === null ? 4 : Math.max(6, Math.min(1, h.index) * 52),
-                    background: h.level ? LEVEL_COLOR[h.level] : "#d4d4d4",
-                  }}
+                  style={{ height: h.index === null ? 4 : Math.max(6, h.index * 44), background: h.level ? LEVEL_COLOR[h.level] : "#d4d4d4" }}
                 />
               </div>
             ))}
           </div>
           <div className="flex justify-between text-[9px] text-neutral-400 mt-1">
             <span>05:00</span>
-            <span>09:00</span>
             <span>13:00</span>
-            <span>17:00</span>
             <span>22:00</span>
           </div>
-          <div className="text-[10px] text-neutral-500 mt-2 leading-snug">
-            Estimate, not measured. Combines this route&apos;s real published bus frequency{advice.routeWide ? " (route-wide, this direction publishes little)" : ""} with a typical
-            Jakarta commuter demand pattern (weekday peaks about 06:00-09:00 and 16:00-20:00). Grey bars: no published service.
-          </div>
-        </>
+          <div className="text-[10px] text-neutral-500 mt-1.5 leading-snug">Estimate from real bus frequency and a typical commuter pattern. Not measured.</div>
+        </div>
       )}
     </div>
   );
@@ -307,59 +308,45 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
   }, [route.route_id]);
 
   const direction = fleet?.directions[dir];
+  const fb = fleet ? fallbackHeadway(fleet.directions) : 900;
   const advice = useMemo(() => (fleet && fleet.directions.length ? adviseRide(fleet.directions, dir, now) : null), [fleet, dir, now]);
-  const live = useMemo(() => (fleet ? liveBuses(fleet, color, now) : []), [fleet, color, now]);
-  const inDir = live.filter((b) => b.directionIndex === dir);
 
-  const arrivals = new Map<string, { now: typeof inDir; next: { b: (typeof inDir)[number]; eta: number }[] }>();
-  for (const b of inDir) {
-    const { currentStopName, nextStopName, etaToNextStopSecs } = b.status;
-    if (currentStopName) {
-      const e = arrivals.get(currentStopName) ?? { now: [], next: [] };
-      e.now.push(b);
-      arrivals.set(currentStopName, e);
-    }
-    if (nextStopName && etaToNextStopSecs !== null) {
-      const e = arrivals.get(nextStopName) ?? { now: [], next: [] };
-      e.next.push({ b, eta: etaToNextStopSecs });
-      arrivals.set(nextStopName, e);
-    }
-  }
+  const buses = useMemo(() => {
+    if (!direction) return [];
+    return simulatedFleet(direction, now, { fallbackHeadwaySecs: fb, max: 8 }).map((b) => ({
+      ...b,
+      id: `SIM-${String(b.index + 1).padStart(2, "0")}`,
+      count: simulatedOccupancy(`${route.route_short_name}${direction.directionId}`, b.index, b.currentStopIndex, now),
+    }));
+  }, [direction, now, fb, route.route_short_name]);
+
+  const headway = direction ? currentHeadwaySecs(direction, now, fb) : null;
+  const duration = direction?.tripDurationSecs ?? null;
+
+  // For every stop: the buses at it right now, or the soonest bus that will reach it.
+  const board = useMemo(() => {
+    if (!direction || !duration) return [];
+    return direction.stops.map((stop) => {
+      if (stop.elapsedSecs === null) return null;
+      const options = buses.map((b) => ({ b, eta: (((stop.elapsedSecs! - b.phase) % duration) + duration) % duration }));
+      options.sort((x, y) => x.eta - y.eta);
+      const best = options[0];
+      return best ? { bus: best.b, eta: best.eta } : null;
+    });
+  }, [direction, duration, buses]);
 
   const lines: MapLine[] = direction ? [{ positions: direction.coordinates, color }] : [];
   const stops = direction ? direction.stops.filter((s) => typeof s.lat === "number").map((s) => [s.lat, s.lon] as [number, number]) : [];
-  const mapBuses: MapBus[] = inDir.map((b) => ({
-    key: b.bus.busId,
+  const ends = direction && direction.coordinates.length > 1 ? { start: direction.coordinates[0], end: direction.coordinates[direction.coordinates.length - 1] } : undefined;
+  const mapBuses: MapBus[] = buses.map((b) => ({
+    key: b.id,
     label: route.route_short_name,
-    position: b.status.position,
+    position: b.position,
     color,
-    tooltip: `${b.bus.busId} · ${b.pct}% full`,
+    badge: `${b.count}/${BUS_CAPACITY}`,
+    badgeBg: occColors(b.count).solid,
+    tooltip: `${b.id} · ${b.count}/${BUS_CAPACITY} seats taken`,
   }));
-
-  const busCard = (b: (typeof inDir)[number], right: React.ReactNode, key: string) => {
-    const occ = occupancyStyle(b.pct);
-    return (
-      <div key={key} className="mt-2 rounded-xl bg-blue-50/70 px-3 py-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base">🚌</span>
-            <span className="text-[11px] font-bold text-white rounded px-1.5 py-0.5" style={{ background: color }}>
-              {route.route_short_name}
-            </span>
-            <span className="text-[11px] font-bold text-white rounded px-1.5 py-0.5 truncate" style={{ background: color }}>
-              {b.bus.busId}
-            </span>
-          </div>
-          {right}
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: occ.bg, color: occ.fg }}>
-            {b.bus.baseOccupancy}/{b.bus.capacity} · {occ.label}
-          </span>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="flex flex-col h-full bg-white text-neutral-900">
@@ -369,21 +356,21 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
         </button>
         <div className="font-bold text-lg">Route Details</div>
       </div>
-      <div className="relative h-[34%] shrink-0">
-        <MapView lines={lines} stops={stops} buses={mapBuses} fit />
+      <div className="relative h-[42%] shrink-0">
+        <MapView lines={lines} stops={stops} ends={ends} buses={mapBuses} fit />
         <StatusChip state={fleet ? "ok" : failed ? "waking" : "loading"} />
         <ClockControl clock={clock} />
       </div>
       <div className="-mt-4 relative z-[600] flex-1 min-h-0 flex flex-col rounded-t-3xl bg-white shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
         <div className="px-4 pt-2 shrink-0">
-          <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
+          <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-2" />
           <div className="flex items-center gap-2">
-            <RouteBadge shortName={route.route_short_name} color={route.route_color} size={34} />
-            <span className="text-xs font-bold text-white rounded-full px-3 py-1.5" style={{ background: TJ_BLUE }}>
+            <RouteBadge shortName={route.route_short_name} color={route.route_color} size={30} />
+            <span className="text-[11px] font-bold text-white rounded-full px-2.5 py-1" style={{ background: TJ_BLUE }}>
               BRT
             </span>
+            <div className="text-[17px] font-extrabold leading-tight ml-1">{route.route_long_name}</div>
           </div>
-          <div className="text-xl font-extrabold mt-2 leading-tight">{route.route_long_name}</div>
           {fleet && fleet.directions.length > 0 && (
             <div className="flex mt-2 border-b border-neutral-200">
               {fleet.directions.map((d, i) => (
@@ -393,7 +380,7 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
                   className={`flex-1 pb-2 pt-1 text-xs font-semibold border-b-[3px] ${i === dir ? "" : "border-transparent text-neutral-400"}`}
                   style={i === dir ? { borderColor: TJ_BLUE, color: TJ_BLUE } : undefined}
                 >
-                  {d.stops[0]?.stopName} - {d.stops[d.stops.length - 1]?.stopName}
+                  To {d.stops[d.stops.length - 1]?.stopName}
                 </button>
               ))}
             </div>
@@ -401,21 +388,23 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          {advice && <AdviceCard advice={advice} />}
-          <div className="text-lg font-extrabold mt-4">Bus Arrival</div>
-          <div className="text-[11px] text-neutral-500 mt-1 mb-2">
-            Demo: bus positions are simulated from TransJakarta&apos;s real published schedule (no live GPS exists). Occupancy is
-            CrowdEase&apos;s own addition, from a real snapshot of its bus counts.
-          </div>
           {!fleet && !failed && <div className="text-sm text-neutral-500 py-6">Loading route...</div>}
           {failed && <div className="text-sm text-neutral-500 py-6">Waking up the server, this can take up to a minute. Retrying automatically...</div>}
-          {direction && live.length === 0 && (
-            <div className="text-xs text-neutral-500 mb-2">
-              CrowdEase has no occupancy counts on this route yet. The stops below are TransJakarta&apos;s real published data.
-            </div>
+          {advice && <BestTime advice={advice} />}
+          {direction && (
+            <>
+              <div className="flex items-baseline justify-between mt-4">
+                <div className="text-lg font-extrabold">Bus Arrival</div>
+                {headway && <div className="text-xs font-semibold text-neutral-600">Bus every ~{Math.max(1, Math.round(headway / 60))} min</div>}
+              </div>
+              <div className="text-[11px] text-neutral-400 mb-2">Demo: bus positions and seat counts are simulated.</div>
+              {buses.length === 0 && <div className="text-xs text-neutral-500 mb-2">No buses running at this time. Service is roughly 05:00 to 22:00.</div>}
+            </>
           )}
           {direction?.stops.map((stop, i) => {
-            const a = arrivals.get(stop.stopName);
+            const b = board[i];
+            const isNow = !!b && b.eta <= 45;
+            const oc = b ? occColors(b.bus.count) : null;
             return (
               <div key={`${stop.stopId}-${i}`} className="flex gap-3">
                 <div className="flex flex-col items-center">
@@ -426,18 +415,21 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
                 </div>
                 <div className="flex-1 min-w-0 pb-3">
                   <div className="font-bold text-[15px] leading-tight">{stop.stopName}</div>
-                  {a?.now.map((b) =>
-                    busCard(b, <span className="text-lg font-extrabold text-emerald-600">Now</span>, `now-${b.bus.busId}`)
-                  )}
-                  {a?.next.map(({ b, eta }) =>
-                    busCard(
-                      b,
-                      <span className="text-right leading-tight">
-                        <span className="block text-[10px] font-bold text-emerald-600">Estimated Arrival</span>
-                        <span className="text-sm font-extrabold text-emerald-600">{Math.max(1, Math.round(eta / 60))} min</span>
-                      </span>,
-                      `next-${b.bus.busId}`
-                    )
+                  {b && oc && (
+                    <div className="mt-1.5 rounded-xl bg-blue-50/70 px-3 py-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span>🚌</span>
+                        <span className="text-[11px] font-bold text-white rounded px-1.5 py-0.5" style={{ background: color }}>
+                          {b.bus.id}
+                        </span>
+                        <span className="text-[11px] font-bold rounded-full px-2 py-0.5" style={{ background: oc.soft, color: oc.text }}>
+                          {b.bus.count}/{BUS_CAPACITY}
+                        </span>
+                      </div>
+                      <span className={`font-extrabold text-emerald-600 ${isNow ? "text-base" : "text-sm"}`}>
+                        {isNow ? "Now" : `${Math.max(1, Math.round(b.eta / 60))} min`}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
