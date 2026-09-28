@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { FleetDirection } from "@/lib/api";
 import { currentHeadwaySecs, simulatedFleet } from "@/lib/fleetSimulation";
 import { BUS_CAPACITY, simulatedOccupancy } from "@/lib/fleetOccupancy";
-import type { MapBus, MapLine } from "./MapView";
+import type { MapBus, MapLine, MapStop } from "./MapView";
 import { DEMO_ROUTE_IDS, getSnapshotFleet } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
 import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
@@ -131,18 +131,17 @@ function HomeScreen({ clock, openRoutes }: { clock: SimClock; openRoutes: () => 
 
 function RoutesScreen({ routes, back, pick }: { routes: AppRoute[]; back: () => void; pick: (r: AppRoute) => void }) {
   const [q, setQ] = useState("");
-  const enabledIds = useMemo(() => new Set(DEMO_ROUTE_IDS), []);
-
-  const { on, off } = useMemo(() => {
+  const enabled = useMemo(
+    () =>
+      routes
+        .filter((r) => DEMO_ROUTE_IDS.includes(r.route_id))
+        .sort((a, b) => Number(a.route_short_name) - Number(b.route_short_name)),
+    [routes]
+  );
+  const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = s
-      ? routes.filter((r) => r.route_short_name.toLowerCase().includes(s) || r.route_long_name.toLowerCase().includes(s))
-      : routes;
-    const enabled = list
-      .filter((r) => enabledIds.has(r.route_id))
-      .sort((a, b) => Number(a.route_short_name) - Number(b.route_short_name));
-    return { on: enabled, off: list.filter((r) => !enabledIds.has(r.route_id)) };
-  }, [routes, q, enabledIds]);
+    return s ? enabled.filter((r) => r.route_short_name.toLowerCase().includes(s) || r.route_long_name.toLowerCase().includes(s)) : enabled;
+  }, [enabled, q]);
 
   return (
     <div className="flex flex-col h-full bg-white text-neutral-900">
@@ -150,34 +149,26 @@ function RoutesScreen({ routes, back, pick }: { routes: AppRoute[]; back: () => 
         <button onClick={back} className="w-9 h-9 rounded-full bg-blue-50 text-xl" aria-label="Back" style={{ color: TJ_BLUE }}>
           &lsaquo;
         </button>
-        <div className="font-bold text-lg">Route</div>
+        <div className="font-bold text-lg">Pick a route</div>
       </div>
       <div className="px-4 pb-3 shrink-0">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search route name or code..."
+          placeholder="Filter by number, e.g. 2"
           className="w-full rounded-xl bg-blue-50/70 px-4 py-3 text-sm outline-none"
         />
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
-        {on.length > 0 && <div className="pt-1 text-xs font-bold text-neutral-500">BUSIEST LINES ({on.length})</div>}
-        {on.map((r) => (
-          <button key={r.route_id} onClick={() => pick(r)} className="w-full flex items-center gap-3 rounded-xl bg-blue-50/60 px-3 py-3 text-left">
-            <RouteBadge shortName={r.route_short_name} color={r.route_color} size={42} />
-            <span className="flex-1 text-sm font-semibold leading-tight">{r.route_long_name}</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">LIVE</span>
-            <span className="text-neutral-400">&rsaquo;</span>
-          </button>
-        ))}
-        {off.length > 0 && <div className="pt-3 text-xs font-bold text-neutral-400">OTHER ROUTES ({off.length}) · NOT IN THIS DEMO</div>}
-        {off.map((r) => (
-          <div key={r.route_id} aria-disabled className="w-full flex items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2.5 opacity-45 cursor-not-allowed select-none">
-            <RouteBadge shortName={r.route_short_name} color="9CA3AF" size={34} />
-            <span className="flex-1 text-xs font-medium leading-tight">{r.route_long_name}</span>
-          </div>
-        ))}
-        {on.length === 0 && off.length === 0 && <div className="text-sm text-neutral-400 py-6 text-center">No route found.</div>}
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="grid grid-cols-3 gap-3">
+          {shown.map((r) => (
+            <button key={r.route_id} onClick={() => pick(r)} className="flex flex-col items-center gap-1.5 rounded-xl bg-blue-50/60 px-2 py-3 text-center">
+              <RouteBadge shortName={r.route_short_name} color={r.route_color} size={44} />
+              <span className="text-[11px] font-semibold leading-snug">{r.route_long_name}</span>
+            </button>
+          ))}
+        </div>
+        {shown.length === 0 && <div className="text-sm text-neutral-400 py-6 text-center">No match among the {enabled.length} routes in this demo.</div>}
       </div>
     </div>
   );
@@ -291,17 +282,18 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
   }, [focusIdx, sel?.id, dir, route.route_id]);
 
   const lines: MapLine[] = direction ? [{ positions: direction.coordinates, color }] : [];
-  const stopPts = direction ? direction.stops.filter((s) => typeof s.lat === "number").map((s) => [s.lat, s.lon] as [number, number]) : [];
+  const stopPts: MapStop[] = direction
+    ? direction.stops.filter((s) => typeof s.lat === "number").map((s) => ({ id: s.stopId, name: s.stopName, position: [s.lat, s.lon] }))
+    : [];
   const ends = direction && direction.coordinates.length > 1 ? { start: direction.coordinates[0], end: direction.coordinates[direction.coordinates.length - 1] } : undefined;
   const mapBuses: MapBus[] = buses.map((b) => ({
     key: b.id,
-    label: route.route_short_name,
     position: b.position,
+    heading: b.heading,
     color,
     badge: `${b.count}/${BUS_CAPACITY}`,
     badgeBg: occColors(b.count).solid,
     selected: b.id === sel?.id,
-    tooltip: `${b.id} · ${b.count}/${BUS_CAPACITY} seats taken`,
   }));
 
   return (

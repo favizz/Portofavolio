@@ -64,6 +64,38 @@ export function pointAtFraction(
   return [lat1 + (lat2 - lat1) * segFraction, lon1 + (lon2 - lon1) * segFraction];
 }
 
+/** Compass bearing (0 = north, 90 = east) from point `a` to point `b`, for pointing a bus icon in its direction of travel. */
+function bearing(a: [number, number], b: [number, number]): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const [lat1, lon1] = [toRad(a[0]), toRad(a[1])];
+  const [lat2, lon2] = [toRad(b[0]), toRad(b[1])];
+  const dLon = lon2 - lon1;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/** Position and direction of travel at `fraction` along the polyline's real path. */
+function pointAndHeadingAtFraction(
+  coordinates: [number, number][],
+  index: PolylineIndex,
+  fraction: number
+): { position: [number, number]; heading: number } {
+  const targetDist = Math.max(0, Math.min(1, fraction)) * index.total;
+  let i = 1;
+  while (i < index.cumulative.length && index.cumulative[i] < targetDist) i++;
+  if (i >= coordinates.length) i = coordinates.length - 1;
+  const segStart = index.cumulative[i - 1];
+  const segEnd = index.cumulative[i];
+  const segFraction = segEnd > segStart ? (targetDist - segStart) / (segEnd - segStart) : 0;
+  const [lat1, lon1] = coordinates[i - 1];
+  const [lat2, lon2] = coordinates[i];
+  return {
+    position: [lat1 + (lat2 - lat1) * segFraction, lon1 + (lon2 - lon1) * segFraction],
+    heading: bearing(coordinates[i - 1], coordinates[i]),
+  };
+}
+
 function activeWindow(windows: FleetHeadwayWindow[], nowSecondsOfDay: number): FleetHeadwayWindow | null {
   for (const w of windows) {
     const start = toSecondsOfDay(w.startTime);
@@ -111,6 +143,7 @@ export interface FleetBus {
   index: number;
   phase: number; // seconds into the trip cycle
   position: [number, number];
+  heading: number; // compass degrees, direction of travel
   currentStopIndex: number | null;
 }
 
@@ -128,7 +161,8 @@ export function simulatedFleet(direction: FleetDirection, now: Date, opts: { fal
     direction.stops.forEach((st, k) => {
       if (st.elapsedSecs !== null && st.elapsedSecs <= phase) currentStopIndex = k;
     });
-    buses.push({ index: i, phase, position: pointAtFraction(direction.coordinates, index, phase / direction.tripDurationSecs), currentStopIndex });
+    const { position, heading } = pointAndHeadingAtFraction(direction.coordinates, index, phase / direction.tripDurationSecs);
+    buses.push({ index: i, phase, position, heading, currentStopIndex });
   }
   return buses;
 }
