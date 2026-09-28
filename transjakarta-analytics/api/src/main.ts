@@ -5,12 +5,8 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS: the frontend is a separate deployment (its own Render/Vercel
-  // URL), so this needs to accept cross-origin requests. Restrict to a
-  // configured origin in production if you want to lock this down further.
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
-  });
+  // Read-only public data with no cookies or logins, so any site may call it. A locked-down origin made the demo hang on "Connecting" from any other URL.
+  app.enableCors({ origin: '*' });
 
   const port = process.env.PORT || 3001;
   // Render (and most container platforms) route to the app via its
