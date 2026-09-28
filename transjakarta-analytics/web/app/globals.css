@@ -12,3 +12,8 @@
    win over the Tailwind utility classes regardless of specificity, since
    Tailwind v4 utilities sit in a lower-priority cascade layer than
    unlayered custom CSS. */
+
+/* Buses glide between updates instead of jumping. */
+.leaflet-marker-icon {
+  transition: transform 0.5s linear;
+}

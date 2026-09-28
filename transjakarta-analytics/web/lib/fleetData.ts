@@ -1,9 +1,11 @@
 import type { FleetRoute } from "./api";
 import snapshot from "./fleet.snapshot.json";
 
-// Real GTFS data for the three routes CrowdEase counts occupancy on, bundled so the demo works instantly while the free-tier API sleeps.
-export const SNAPSHOT_ROUTE_IDS = ["2", "2A", "7F"];
+// Real GTFS data (shape, stops, headways) for the busiest lines, the main BRT corridors 1 to 13, bundled so the demo needs no server.
+const data = snapshot as unknown as Record<string, FleetRoute>;
+
+export const DEMO_ROUTE_IDS = Object.keys(data);
 
 export function getSnapshotFleet(routeId: string): FleetRoute | null {
-  return (snapshot as unknown as Record<string, FleetRoute>)[routeId] ?? null;
+  return data[routeId] ?? null;
 }

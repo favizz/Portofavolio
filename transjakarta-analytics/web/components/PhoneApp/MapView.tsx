@@ -17,27 +17,37 @@ export interface MapBus {
   tooltip: string;
   badge?: string;
   badgeBg?: string;
+  selected?: boolean;
 }
 
-function Fit({ lines }: { lines: MapLine[] }) {
+function Fit({ lines, fitKey }: { lines: MapLine[]; fitKey: string }) {
   const map = useMap();
   useEffect(() => {
     const pts = lines.flatMap((l) => l.positions);
     if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [24, 24] });
-  }, [lines, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey, map]);
   return null;
 }
 
-function busIcon(color: string, badge?: string, badgeBg = "#15803d") {
+const iconCache = new Map<string, L.DivIcon>();
+
+function busIcon(color: string, badge?: string, badgeBg = "#15803d", selected = false) {
+  const key = `${color}|${badge}|${badgeBg}|${selected}`;
+  const cached = iconCache.get(key);
+  if (cached) return cached;
   const badgeHtml = badge
-    ? `<div style="position:absolute;left:50%;transform:translateX(-50%);top:26px;background:${badgeBg};color:#fff;font:700 10px system-ui;border-radius:8px;padding:1px 6px;white-space:nowrap;border:1px solid #fff">${badge}</div>`
+    ? `<div style="position:absolute;left:50%;transform:translateX(-50%);top:30px;background:${badgeBg};color:#fff;font:700 10px system-ui;border-radius:8px;padding:1px 6px;white-space:nowrap;border:1px solid #fff">${badge}</div>`
     : "";
-  return L.divIcon({
+  const ring = selected ? "box-shadow:0 0 0 4px rgba(26,75,160,.55),0 1px 5px rgba(0,0,0,.45);" : "box-shadow:0 1px 5px rgba(0,0,0,.45);";
+  const icon = L.divIcon({
     className: "",
-    iconSize: [30, 44],
-    iconAnchor: [15, 15],
-    html: `<div style="position:relative;width:30px;height:44px"><div style="width:30px;height:30px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:15px">&#128652;</div>${badgeHtml}</div>`,
+    iconSize: [34, 48],
+    iconAnchor: [17, 17],
+    html: `<div style="position:relative;width:34px;height:48px"><div style="width:34px;height:34px;border-radius:50%;background:${color};border:2px solid #fff;${ring}display:flex;align-items:center;justify-content:center;font-size:17px">&#128652;</div>${badgeHtml}</div>`,
   });
+  iconCache.set(key, icon);
+  return icon;
 }
 
 export default function MapView({
@@ -46,12 +56,14 @@ export default function MapView({
   ends,
   buses,
   fit,
+  fitKey = "",
 }: {
   lines: MapLine[];
   stops?: [number, number][];
   ends?: { start: [number, number]; end: [number, number] };
   buses: MapBus[];
   fit: boolean;
+  fitKey?: string;
 }) {
   return (
     <MapContainer
@@ -61,7 +73,7 @@ export default function MapView({
       style={{ height: "100%", width: "100%", background: "#eee" }}
     >
       <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      {fit && <Fit lines={lines} />}
+      {fit && <Fit lines={lines} fitKey={fitKey} />}
       {lines.map((l, i) => (
         <Polyline key={`c${i}`} positions={l.positions} pathOptions={{ color: "#fff", weight: 9, opacity: 0.95 }} />
       ))}
@@ -87,7 +99,7 @@ export default function MapView({
         </>
       )}
       {buses.map((b) => (
-        <Marker key={b.key} position={b.position} icon={busIcon(b.color, b.badge, b.badgeBg)}>
+        <Marker key={b.key} position={b.position} zIndexOffset={b.selected ? 1000 : 0} icon={busIcon(b.color, b.badge, b.badgeBg, b.selected)}>
           <Tooltip direction="top" offset={[0, -12]}>
             {b.tooltip}
           </Tooltip>
