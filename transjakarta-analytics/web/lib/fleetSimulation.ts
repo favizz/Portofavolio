@@ -113,7 +113,6 @@ export interface SimulatedBus {
 const MAX_SIMULATED_BUSES = 20;
 
 interface Timing {
-  windowStart: number;
   headway: number;
 }
 
@@ -121,22 +120,31 @@ interface Timing {
 function resolveTiming(direction: FleetDirection, now: Date, fallbackHeadwaySecs?: number): Timing | null {
   const secs = jakartaSecondsOfDay(now);
   const window = activeWindow(direction.headwayProfile, secs);
-  if (window) return { windowStart: toSecondsOfDay(window.startTime), headway: window.headwaySecs };
+  if (window) return { headway: window.headwaySecs };
   const hourly = direction.hourlyHeadwaySecs?.[Math.floor(secs / 3600)];
-  if (hourly) return { windowStart: 0, headway: hourly };
+  if (hourly) return { headway: hourly };
   const hour = Math.floor(secs / 3600);
-  if (fallbackHeadwaySecs && hour >= 5 && hour < 22) return { windowStart: 0, headway: fallbackHeadwaySecs };
+  if (fallbackHeadwaySecs && hour >= 5 && hour < 22) return { headway: fallbackHeadwaySecs };
   return null;
 }
 
-/** Seconds into the representative trip's cycle for the `busIndex`-th bus spaced one headway apart, or `null` when nothing is running. */
-function phaseForIndex(direction: FleetDirection, busIndex: number, now: Date, fallbackHeadwaySecs?: number): number | null {
+/**
+ * Seconds into the representative trip's cycle for the `busIndex`-th bus,
+ * spaced `spacingSecs` apart (typically the current headway), or `null`
+ * when nothing is running. Always measured from a single fixed epoch
+ * (Jakarta midnight), never from the active headway window's own start
+ * time: an earlier version re-anchored to each window's start, so a bus
+ * jumped to an unrelated point on the route (sometimes behind where it
+ * just was) every time the active window changed, tens of times over a
+ * simulated day. Anchoring to one fixed epoch means a bus's phase is a
+ * smooth, monotonic function of time that simply wraps 0-duration-0, a
+ * clean loop back to the route's start, never a backward jump.
+ */
+function phaseForIndex(direction: FleetDirection, busIndex: number, now: Date, spacingSecs: number): number | null {
   if (!direction.tripDurationSecs || direction.coordinates.length < 2) return null;
-  const timing = resolveTiming(direction, now, fallbackHeadwaySecs);
-  if (!timing) return null;
   const duration = direction.tripDurationSecs;
   const nowSecs = jakartaSecondsOfDay(now);
-  return ((nowSecs - timing.windowStart + busIndex * timing.headway) % duration + duration) % duration;
+  return ((nowSecs + busIndex * spacingSecs) % duration + duration) % duration;
 }
 
 export interface FleetBus {
@@ -153,10 +161,13 @@ export function simulatedFleet(direction: FleetDirection, now: Date, opts: { fal
   const timing = resolveTiming(direction, now, opts.fallbackHeadwaySecs);
   if (!timing) return [];
   const count = Math.min(opts.max ?? 10, Math.max(1, Math.round(direction.tripDurationSecs / timing.headway)));
+  // Spacing is normalized across the loop (duration/count) rather than the literal headway, so bus spacing
+  // only shifts when count itself changes, not on every small real-vs-hourly headway difference.
+  const spacingSecs = direction.tripDurationSecs / count;
   const index = indexPolyline(direction.coordinates);
   const buses: FleetBus[] = [];
   for (let i = 0; i < count; i++) {
-    const phase = phaseForIndex(direction, i, now, opts.fallbackHeadwaySecs)!;
+    const phase = phaseForIndex(direction, i, now, spacingSecs)!;
     let currentStopIndex: number | null = null;
     direction.stops.forEach((st, k) => {
       if (st.elapsedSecs !== null && st.elapsedSecs <= phase) currentStopIndex = k;
@@ -180,10 +191,11 @@ export function simulateBuses(direction: FleetDirection, now: Date): SimulatedBu
   if (!window) return null;
 
   const busCount = Math.min(MAX_SIMULATED_BUSES, Math.max(1, Math.round(direction.tripDurationSecs / window.headwaySecs)));
+  const spacingSecs = direction.tripDurationSecs / busCount;
   const index = indexPolyline(direction.coordinates);
   const buses: SimulatedBus[] = [];
   for (let i = 0; i < busCount; i++) {
-    const phase = phaseForIndex(direction, i, now)!;
+    const phase = phaseForIndex(direction, i, now, spacingSecs)!;
     buses.push({ index: i, position: pointAtFraction(direction.coordinates, index, phase / direction.tripDurationSecs) });
   }
   return buses;
@@ -207,7 +219,8 @@ export interface NamedBusStatus {
  * published headway window, same as simulateBuses.
  */
 export function namedBusStatus(direction: FleetDirection, busIndex: number, now: Date): NamedBusStatus | null {
-  const phase = phaseForIndex(direction, busIndex, now);
+  const timing = resolveTiming(direction, now);
+  const phase = timing ? phaseForIndex(direction, busIndex, now, timing.headway) : null;
   if (phase === null || !direction.tripDurationSecs) return null;
 
   const index = indexPolyline(direction.coordinates);
