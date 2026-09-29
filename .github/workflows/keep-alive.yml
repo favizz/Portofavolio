@@ -1,5 +1,11 @@
-name: Keep TransJakarta services warm
+name: Keep TransJakarta API warm
 
+# The web frontend moved to Vercel (no sleep, so no ping needed). This only
+# pings the NestJS API on Render, still used by the analytics pages behind
+# "How it works". Note: GitHub's own cron scheduling is best-effort and can
+# be delayed hours on a low-traffic repo (observed 3h47m-8h32m gaps despite
+# this 10-minute schedule), so this alone won't guarantee the API is always
+# warm, but it's free and better than nothing.
 on:
   schedule:
     - cron: "*/10 * * * *"
@@ -12,6 +18,3 @@ jobs:
       - name: Ping API health
         run: |
           curl -sS -o /dev/null -w "api: %{http_code}\n" --max-time 90 https://transjakarta-api.onrender.com/health
-      - name: Ping web root
-        run: |
-          curl -sS -o /dev/null -w "web: %{http_code}\n" --max-time 90 https://transjakarta-web.onrender.com/

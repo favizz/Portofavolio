@@ -66,7 +66,7 @@ export const projects = [
       "Fleet View simulates bus positions along TransJakarta's own real shape polylines from the feed's real schedule, since the feed publishes no live vehicle-position API",
     ],
     tags: ['NestJS', 'Next.js', 'PostgreSQL', 'Go', 'Leaflet'],
-    url: 'https://transjakarta-web.onrender.com/',
+    url: 'https://portofavolio-rmww.vercel.app/',
   },
   {
     slug: 'trich-website',
