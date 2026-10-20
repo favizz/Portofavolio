@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FleetDirection } from "@/lib/api";
 import { currentHeadwaySecs, simulatedFleet } from "@/lib/fleetSimulation";
-import { BUS_CAPACITY, simulatedOccupancy } from "@/lib/fleetOccupancy";
+import { BUS_CAPACITY, occupancyRangeAt, simulatedOccupancy } from "@/lib/fleetOccupancy";
 import type { MapBus, MapLine, MapStop } from "./MapView";
 import { DEMO_ROUTE_IDS, getSnapshotFleet } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
@@ -226,6 +226,123 @@ function BestTime({ advice }: { advice: ReturnType<typeof adviseRide> }) {
   );
 }
 
+/** A rider's own boarding station: either picked from the real stop list, or (default) a random demo "location detection" stand-in, since there's no real GPS read. */
+function TimePlanner({
+  direction,
+  now,
+  fallbackHeadwaySecs,
+  routeKey,
+}: {
+  direction: FleetDirection;
+  now: Date;
+  fallbackHeadwaySecs: number;
+  routeKey: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"auto" | "manual">("auto");
+  const [stationIdx, setStationIdx] = useState<number | null>(null);
+
+  const stopOptions = useMemo(() => direction.stops.map((s, i) => ({ s, i })).filter((x) => x.s.elapsedSecs !== null), [direction]);
+
+  const detectLocation = () => {
+    if (!stopOptions.length) return;
+    const pick = stopOptions[Math.floor(Math.random() * stopOptions.length)];
+    setMode("auto");
+    setStationIdx(pick.i);
+  };
+
+  useEffect(() => {
+    setStationIdx(null);
+    setMode("auto");
+  }, [direction]);
+
+  useEffect(() => {
+    if (open && stationIdx === null) detectLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const planBuses = useMemo(() => simulatedFleet(direction, now, { fallbackHeadwaySecs, max: 50 }), [direction, now, fallbackHeadwaySecs]);
+
+  const result = useMemo(() => {
+    if (stationIdx === null) return null;
+    const stop = direction.stops[stationIdx];
+    if (!stop || stop.elapsedSecs === null) return null;
+    const upcoming = planBuses
+      .map((b) => ({ b, delta: stop.elapsedSecs! - b.phase }))
+      .filter((x) => x.delta >= -45)
+      .sort((a, b) => a.delta - b.delta);
+    const best = upcoming[0];
+    if (!best) return null;
+    const arriveAt = new Date(now.getTime() + Math.max(0, best.delta) * 1000);
+    const minutesAway = Math.max(0, Math.round(best.delta / 60));
+    const [lo, hi] = occupancyRangeAt(routeKey, best.b.index, stationIdx, arriveAt);
+    return { stop, arriveAt, minutesAway, lo, hi, busId: `SIM-${String(best.b.index + 1).padStart(2, "0")}` };
+  }, [stationIdx, planBuses, direction, now, routeKey]);
+
+  return (
+    <div className="rounded-xl bg-blue-50/70 mt-2">
+      <button onClick={() => setOpen((o) => !o)} className="w-full text-left px-3 py-2.5 flex items-center gap-2">
+        <div className="flex-1 text-[13px] font-bold">🕒 When should I leave?</div>
+        <span className="text-neutral-400 text-lg">{open ? "⌃" : "⌄"}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2.5">
+          <div className="flex gap-2">
+            <button
+              onClick={detectLocation}
+              className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold ${mode === "auto" ? "bg-[#1A4BA0] text-white" : "bg-white text-neutral-600"}`}
+            >
+              📍 Detect my location (demo)
+            </button>
+          </div>
+          <label className="block">
+            <span className="text-[11px] text-neutral-500">Or choose your station</span>
+            <select
+              value={stationIdx ?? ""}
+              onChange={(e) => {
+                setMode("manual");
+                setStationIdx(Number(e.target.value));
+              }}
+              className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+            >
+              <option value="" disabled>
+                Select a station
+              </option>
+              {stopOptions.map(({ s, i }) => (
+                <option key={s.stopId} value={i}>
+                  {s.stopName}
+                </option>
+              ))}
+            </select>
+          </label>
+          {mode === "auto" && stationIdx !== null && (
+            <div className="text-[11px] text-neutral-500">
+              Demo-detected location: <b className="text-neutral-700">{direction.stops[stationIdx].stopName}</b> (randomized, not a real GPS read)
+            </div>
+          )}
+          {result ? (
+            <div className="rounded-lg bg-white px-3 py-2.5">
+              <div className="text-[13px] font-bold">{result.stop.stopName}</div>
+              <div className="text-xs text-neutral-600 mt-0.5">
+                Next bus (<b>{result.busId}</b>) arrives <b>{hhmm(result.arriveAt)}</b>
+              </div>
+              <div className="text-xs text-neutral-600">
+                Leave within <b>{result.minutesAway <= 0 ? "now" : `${result.minutesAway} min`}</b> to catch it
+              </div>
+              <div className="text-xs mt-1">
+                Expected capacity: <b>{result.lo}-{result.hi}/{BUS_CAPACITY}</b> seats
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-neutral-500">No upcoming bus found for this station right now.</div>
+          )}
+          <div className="text-[10px] text-neutral-400">Demo: location detection is randomized, and all times/capacities are estimates.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => void; clock: SimClock }) {
   const now = clock.now;
   const fleet = getSnapshotFleet(route.route_id);
@@ -360,6 +477,7 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
 
         <div ref={scrollRef} className="relative flex-1 overflow-y-auto px-4 pb-4">
           {advice && <BestTime advice={advice} />}
+          {direction && <TimePlanner direction={direction} now={now} fallbackHeadwaySecs={fb} routeKey={routeKey} />}
           <div className="flex items-baseline justify-between mt-3">
             <div className="text-lg font-extrabold">{sel ? `${sel.id} journey` : "Bus Arrival"}</div>
             {headway && <div className="text-xs font-semibold text-neutral-600">Bus every ~{Math.max(1, Math.round(headway / 60))} min</div>}

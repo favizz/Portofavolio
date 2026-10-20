@@ -34,3 +34,9 @@ export function simulatedOccupancy(routeKey: string, busIndex: number, stopIndex
   }
   return count;
 }
+
+/** Same estimate as `simulatedOccupancy`, widened to a plausible range (± the per-stop step bound). Used when recommending a future arrival rather than reading a bus's count right now, so it's shown as a range rather than a single exact number. */
+export function occupancyRangeAt(routeKey: string, busIndex: number, stopIndex: number | null, now: Date): [number, number] {
+  const exact = simulatedOccupancy(routeKey, busIndex, stopIndex, now);
+  return [Math.max(MIN_OCCUPANCY, exact - STEP_RANGE), Math.min(BUS_CAPACITY, exact + STEP_RANGE)];
+}
