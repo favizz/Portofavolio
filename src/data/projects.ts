@@ -9,7 +9,7 @@ export const projects = [
     description:
       'A NestJS + MySQL backend streaming live MQTT telemetry from <strong>2,444+ smart meters</strong> into prepaid token billing, plus the two React frontends (building-manager dashboard, resident web app) that consume it.',
     highlights: [
-      '<strong>13-detector anomaly engine</strong> (backflow, tamper, sensor faults, MCB trips, and more), hardened by <strong>80+ Jest tests</strong>',
+      '<strong>13-detector anomaly engine</strong> (backflow, tamper, sensor faults, MCB trips, and more), backed by <strong>166 unit tests</strong>',
       'Multi-tenant access secured with Google OAuth 2.0, JWT, and RBAC across buildings',
       'Background job queue (BullMQ/Redis) fans out OTA firmware updates and notification delivery',
     ],
@@ -77,9 +77,9 @@ export const projects = [
     cardImage: '/images/projects/trich-website-front.webp',
     stageImage: '/images/projects/trich-website-inside.webp',
     description:
-      'The public-facing website for an AI-driven barbershop concept, <strong>built end-to-end</strong> as the Front-End Developer during the Trich AI Barberspace internship.',
+      'The public-facing website for an AI-driven barbershop concept, <strong>built end-to-end</strong> as a part-time Front-End Developer at Trich Barberspace.',
     highlights: [
-      'Implemented a responsive, sleek UI/UX from concept to production, optimizing interactions to match requirements',
+      'Promo, product catalog, and location pages with Google Maps and click-to-call contact',
     ],
     tags: [],
     url: 'https://trich-demo.vercel.app/',

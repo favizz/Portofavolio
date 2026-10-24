@@ -15,14 +15,14 @@ export const achievements = [
   },
   {
     slug: 'compfest-finalist',
-    short: 'COMPFEST XVII Finalist',
+    short: 'COMPFEST XVII Top 8 Finalist',
     org: 'Universitas Indonesia',
     date: 'Sep 2025',
     documentUrl: 'https://drive.google.com/file/d/1uCR9YHYqQYSc0M30VpTllW97T6HW_HYE/view?usp=sharing',
   },
   {
     slug: 'nsci-runner-up',
-    short: 'NSCI BCC Runner Up',
+    short: 'NSCI BCC 3rd Place',
     org: 'NSCI x YLI McKinsey',
     date: 'Nov 2024',
     documentUrl: 'https://drive.google.com/file/d/1d7MhTSIAbmpwjkCAE2sP2HpAEpV4n87q/view?usp=sharing',

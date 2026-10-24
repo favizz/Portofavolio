@@ -43,7 +43,7 @@ export const experience = [
     company: 'PT Toyota Motor Manufacturing Indonesia',
     short: 'Toyota',
     companyNote: "Toyota, #1 world's largest automaker",
-    role: 'Regulator',
+    role: 'Regulatory Analyst',
     employmentTag: 'Intern',
     team: 'Government Regulation Reform Department',
     period: 'Jan 2025 - Feb 2025',
@@ -73,8 +73,8 @@ export const experience = [
     tags: [],
     relatedProjectSlug: 'trich-website',
     bullets: [
-      'Transformed AI-driven barbershop concepts into an intuitive, high-performance digital experience',
-      'Implemented responsive, sleek UI/UX, optimizing user interactions to match requirements',
+      "Built and launched the barbershop's public website end-to-end with Next.js (App Router)",
+      'Developed responsive promo, product catalog, and location pages with Google Maps and click-to-call contact',
     ],
   },
   {
@@ -90,7 +90,7 @@ export const experience = [
     stageImage: '/images/career/urpa-itb-inside.webp',
     tags: [],
     bullets: [
-      'Disseminated information, documented activities, and managed events across social media',
+      'Led a <strong>10-person media team</strong> running social media, publication, and documentation for swimming events',
     ],
   },
   {
@@ -101,14 +101,14 @@ export const experience = [
     role: 'Bachelor of Information Systems and Technology',
     shortRole: 'Bachelor of IST',
     team: null,
-    period: 'Aug 2022 - Aug 2026',
+    period: 'Aug 2022 - Jul 2026',
     logo: '/images/companies/itb.webp',
     cardImage: '/images/career/itb-front.webp',
     stageImage: '/images/career/itb-inside.webp',
     tags: [],
     relatedProjectSlug: ['netflow', 'fraud-detection-system'],
     bullets: [
-      'GPA <strong>3.62</strong> out of 4.00 (Cumlaude)',
+      'GPA <strong>3.62</strong> out of 4.00 (Cum Laude)',
       'Coursework: Algorithms & Data Structures, Database Systems, Software Engineering, Information Security, Data Analytics, and Artificial Intelligence',
     ],
   },
