@@ -15,7 +15,7 @@ This is my personal portfolio: a single scrolling page covering my career, proje
 ## Get in touch
 
 - Email: izza.diasputra10@gmail.com
-- GitHub: [IlllIllIIIlIlIll](https://github.com/IlllIllIIIlIlIll)
+- GitHub: [favizz](https://github.com/favizz)
 - LinkedIn: [favianizza](https://www.linkedin.com/in/favianizza/)
 - Instagram: [@favianizza](https://www.instagram.com/favianizza/)
 - Facebook: [fvniz](https://www.facebook.com/fvniz)
