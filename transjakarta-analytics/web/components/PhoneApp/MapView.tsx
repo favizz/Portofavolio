@@ -29,6 +29,10 @@ export interface MapBus {
   badgeBg?: string;
   selected?: boolean;
 }
+export interface MyLocation {
+  position: [number, number];
+  label: string;
+}
 
 function Fit({ lines, fitKey }: { lines: MapLine[]; fitKey: string }) {
   const map = useMap();
@@ -66,6 +70,22 @@ function busIcon(color: string, heading: number, badge?: string, badgeBg = "#158
   return icon;
 }
 
+let myLocationIconCache: L.DivIcon | null = null;
+/** A Google-Maps-style "you are here" dot: a soft pulsing halo (Tailwind's animate-ping, already generated since that class literally appears elsewhere in this app) around a solid blue center. Static, since this demo has no real GPS to move it. */
+function myLocationIcon(): L.DivIcon {
+  if (myLocationIconCache) return myLocationIconCache;
+  myLocationIconCache = L.divIcon({
+    className: "",
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    html: `<div style="position:relative;width:24px;height:24px">
+      <span class="animate-ping" style="position:absolute;inset:0;border-radius:9999px;background:rgba(26,75,160,.45)"></span>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#1A4BA0;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>
+    </div>`,
+  });
+  return myLocationIconCache;
+}
+
 export default function MapView({
   lines,
   stops = [],
@@ -73,6 +93,9 @@ export default function MapView({
   buses,
   fit,
   fitKey = "",
+  center = [-6.2, 106.85],
+  zoom = 12,
+  myLocation,
 }: {
   lines: MapLine[];
   stops?: MapStop[];
@@ -80,11 +103,14 @@ export default function MapView({
   buses: MapBus[];
   fit: boolean;
   fitKey?: string;
+  center?: [number, number];
+  zoom?: number;
+  myLocation?: MyLocation;
 }) {
   return (
     <MapContainer
-      center={[-6.2, 106.85]}
-      zoom={12}
+      center={center}
+      zoom={zoom}
       minZoom={11}
       maxZoom={18}
       maxBounds={JAKARTA_BOUNDS}
@@ -101,8 +127,10 @@ export default function MapView({
       {lines.map((l, i) => (
         <Polyline key={i} positions={l.positions} pathOptions={{ color: l.color, weight: 5, opacity: 1 }} />
       ))}
-      {stops.map((s) => (
-        <CircleMarker key={s.id} center={s.position} radius={5} pathOptions={{ color: "#1A4BA0", weight: 2, fillColor: "#fff", fillOpacity: 1 }}>
+      {stops.map((s, i) => (
+        // A handful of real routes revisit the same physical stop twice within one direction
+        // (a loop-shaped corridor), so stopId alone isn't always unique within this list.
+        <CircleMarker key={`${s.id}-${i}`} center={s.position} radius={5} pathOptions={{ color: "#1A4BA0", weight: 2, fillColor: "#fff", fillOpacity: 1 }}>
           <Popup>
             <div className="text-sm font-semibold">{s.name}</div>
             <div className="text-xs text-neutral-500">{s.id}</div>
@@ -122,6 +150,13 @@ export default function MapView({
       {buses.map((b) => (
         <Marker key={b.key} position={b.position} zIndexOffset={b.selected ? 1000 : 0} icon={busIcon(b.color, b.heading, b.badge, b.badgeBg, b.selected)} />
       ))}
+      {myLocation && (
+        <Marker position={myLocation.position} icon={myLocationIcon()} zIndexOffset={900}>
+          <Tooltip direction="top" offset={[0, -8]} permanent opacity={0.95}>
+            {myLocation.label}
+          </Tooltip>
+        </Marker>
+      )}
     </MapContainer>
   );
 }

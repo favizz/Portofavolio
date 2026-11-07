@@ -8,6 +8,7 @@ import { BUS_CAPACITY, occupancyRangeAt, simulatedOccupancy } from "@/lib/fleetO
 import type { MapBus, MapLine, MapStop } from "./MapView";
 import { DEMO_ROUTE_IDS, getSnapshotFleet } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
+import { DEMO_LOCATION, nearestStation } from "@/lib/locate";
 import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
 import { RouteBadge, TJ_BLUE } from "./shared";
 
@@ -38,6 +39,15 @@ function fallbackHeadway(directions: FleetDirection[]): number {
 }
 
 const hhmm = (d: Date) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(11, 16);
+const jakartaMinutesOfDay = (d: Date) => {
+  const s = new Date(d.getTime() + 7 * 3600 * 1000);
+  return s.getUTCHours() * 60 + s.getUTCMinutes();
+};
+const fmtHM = (m: number) => `${String(Math.floor((((m % 1440) + 1440) % 1440) / 60)).padStart(2, "0")}:${String((((m % 1440) + 1440) % 1440) % 60).padStart(2, "0")}`;
+const parseHM = (hhmmStr: string): number | null => {
+  const [h, m] = hhmmStr.split(":").map(Number);
+  return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m;
+};
 
 function BottomNav({ onHome }: { onHome: () => void }) {
   const items = [
@@ -68,64 +78,136 @@ function BottomNav({ onHome }: { onHome: () => void }) {
   );
 }
 
-function HomeScreen({ clock, openRoutes }: { clock: SimClock; openRoutes: () => void }) {
-  const quick = [
-    { label: "Route", icon: "⤳", onClick: openRoutes },
-    { label: "Bus Stop", icon: "▥" },
-    { label: "BRT Ticket", icon: "▭" },
-    { label: "Aspiration", icon: "☺" },
-  ];
+/**
+ * Nearest-station + quiet-time recommendation for the home screen. There's
+ * no real routing here (no graph of which route gets from an arbitrary
+ * "destination" to another), so this stays to what's honestly computable
+ * from the bundled data: the real stop closest to the fixed demo location,
+ * and, within a window the visitor sets (go time, defaulting to now, and
+ * an arrival deadline), the least-crowded real hour on that stop's route.
+ */
+function NearestStationCard({ routes, clock, goToRoute }: { routes: AppRoute[]; clock: SimClock; goToRoute: (r: AppRoute) => void }) {
+  const station = useMemo(() => nearestStation(routes), [routes]);
+  const route = useMemo(() => (station ? routes.find((r) => r.route_id === station.routeId) ?? null : null), [routes, station]);
+  const fleet = station ? getSnapshotFleet(station.routeId) : null;
+  const direction = fleet?.directions[station?.directionIndex ?? 0];
+
+  const [goMinutes, setGoMinutes] = useState<number | null>(null);
+  const [arriveMinutes, setArriveMinutes] = useState<number | null>(null);
+  useEffect(() => {
+    if (goMinutes !== null) return;
+    const nowM = jakartaMinutesOfDay(clock.now);
+    setGoMinutes(nowM);
+    setArriveMinutes((nowM + 120) % 1440);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const advice = useMemo(
+    () => (fleet && direction ? adviseRide(fleet.directions, station!.directionIndex, clock.now) : null),
+    [fleet, direction, station, clock.now]
+  );
+
+  const recommendation = useMemo(() => {
+    if (!advice || goMinutes === null || arriveMinutes === null) return null;
+    const arriveAdj = arriveMinutes > goMinutes ? arriveMinutes : arriveMinutes + 1440;
+    const goHour = Math.floor(goMinutes / 60);
+    const arriveHourExclusive = Math.max(goHour + 1, Math.ceil(arriveAdj / 60));
+    const extended = [...advice.hours, ...advice.hours.map((h) => ({ ...h, hour: h.hour + 24 }))];
+    const inWindow = extended.filter((h) => h.hour >= goHour && h.hour < arriveHourExclusive && h.index !== null);
+    if (!inWindow.length) return null;
+    const best = inWindow.reduce((a, b) => (b.index! < a.index! ? b : a));
+    return { hour: best.hour % 24, level: best.level! };
+  }, [advice, goMinutes, arriveMinutes]);
+
+  if (!station || !route) return null;
+  const distanceLabel = station.distanceMeters < 1000 ? `${Math.round(station.distanceMeters / 10) * 10} m` : `${(station.distanceMeters / 1000).toFixed(1)} km`;
+
+  return (
+    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-neutral-900">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Nearest station</div>
+          <div className="text-[15px] font-extrabold leading-tight mt-0.5">{station.stopName}</div>
+          <div className="text-xs text-neutral-500 mt-0.5">
+            ~{distanceLabel} from your demo location, on Route {route.route_short_name}
+          </div>
+        </div>
+        <RouteBadge shortName={route.route_short_name} color={route.route_color} size={34} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        <label className="block">
+          <span className="text-[11px] text-neutral-500">Leave after</span>
+          <input
+            type="time"
+            step={60}
+            value={goMinutes === null ? "" : fmtHM(goMinutes)}
+            onChange={(e) => {
+              const m = parseHM(e.target.value);
+              if (m !== null) setGoMinutes(m);
+            }}
+            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[11px] text-neutral-500">Arrive by</span>
+          <input
+            type="time"
+            step={60}
+            value={arriveMinutes === null ? "" : fmtHM(arriveMinutes)}
+            onChange={(e) => {
+              const m = parseHM(e.target.value);
+              if (m !== null) setArriveMinutes(m);
+            }}
+            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+          />
+        </label>
+      </div>
+
+      <div className="mt-3 rounded-lg bg-white px-3 py-2.5">
+        {recommendation ? (
+          <div className="text-xs text-neutral-700">
+            Quietest around <b>{String(recommendation.hour).padStart(2, "0")}:00</b>:{" "}
+            <b style={{ color: LEVEL_COLOR[recommendation.level] }}>{LEVEL_TEXT[recommendation.level]}</b>
+          </div>
+        ) : (
+          <div className="text-xs text-neutral-500">No real schedule data for that window on this route.</div>
+        )}
+      </div>
+
+      <button onClick={() => goToRoute(route)} className="mt-3 w-full rounded-lg py-2.5 text-sm font-semibold text-white" style={{ background: TJ_BLUE }}>
+        View Route {route.route_short_name}
+      </button>
+      <div className="text-[10px] text-neutral-400 mt-2 leading-snug">
+        Demo: "nearest station" is measured from a fixed demo location, not your real GPS. The quiet-time estimate comes from real bus frequency and a typical commuter pattern, not measured ridership.
+      </div>
+    </div>
+  );
+}
+
+function HomeScreen({ clock, routes, openRoutes, goToRoute }: { clock: SimClock; routes: AppRoute[]; openRoutes: () => void; goToRoute: (r: AppRoute) => void }) {
   return (
     <>
-      <div className="px-4 pt-5 pb-6 text-white shrink-0" style={{ background: TJ_BLUE }}>
+      <div className="px-4 pt-5 pb-4 text-white shrink-0" style={{ background: TJ_BLUE }}>
         <div className="text-lg font-light">
           Hello, <span className="font-bold">Rider</span>
         </div>
-        <div
-          aria-disabled="true"
-          className="mt-3 w-full rounded-xl bg-white/50 text-white/60 text-sm text-left px-4 py-3 cursor-not-allowed select-none"
-        >
-          Search Destination (not available in this demo)
-        </div>
       </div>
       <div className="relative flex-1 min-h-0">
-        <MapView lines={[]} buses={[]} fit={false} />
+        <MapView lines={[]} buses={[]} fit={false} center={[DEMO_LOCATION.lat, DEMO_LOCATION.lon]} zoom={16} myLocation={{ position: [DEMO_LOCATION.lat, DEMO_LOCATION.lon], label: DEMO_LOCATION.label }} />
         <ClockControl clock={clock} />
       </div>
-      <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
+      <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] overflow-y-auto max-h-[62%] text-neutral-900">
         <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
-        <div className="rounded-xl p-3 text-white flex items-center justify-between gap-3" style={{ background: TJ_BLUE }}>
-          <div>
-            <div className="font-bold text-sm">CrowdEase</div>
-            <div className="text-xs text-blue-100">See how full your bus is before it arrives.</div>
+        <button onClick={openRoutes} className="w-full rounded-xl p-3 text-white flex items-center justify-between gap-3" style={{ background: TJ_BLUE }}>
+          <div className="text-left">
+            <div className="font-bold text-sm">Where are you headed?</div>
+            <div className="text-xs text-blue-100">Browse every route in this demo.</div>
           </div>
-          <button onClick={openRoutes} className="bg-white text-xs font-semibold rounded-lg px-3 py-2 shrink-0" style={{ color: TJ_BLUE }}>
-            Try it
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mt-3">
-          {quick.map((q) =>
-            q.onClick ? (
-              <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-1 text-[11px] font-extrabold" style={{ color: TJ_BLUE }}>
-                <span className="relative">
-                  <span className="absolute inset-0 rounded-2xl animate-ping bg-blue-400/40" />
-                  <span
-                    className="relative w-14 h-14 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg ring-4 ring-blue-200"
-                    style={{ background: TJ_BLUE }}
-                  >
-                    {q.icon}
-                  </span>
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5">TRY</span>
-                </span>
-                {q.label}
-              </button>
-            ) : (
-              <div key={q.label} className="flex flex-col items-center gap-1 text-[11px] text-neutral-400">
-                <span className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center text-xl grayscale">{q.icon}</span>
-                {q.label}
-              </div>
-            )
-          )}
+          <span className="text-xl">→</span>
+        </button>
+        <div className="mt-3">
+          <NearestStationCard routes={routes} clock={clock} goToRoute={goToRoute} />
         </div>
       </div>
     </>
@@ -528,25 +610,21 @@ export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
   const [selected, setSelected] = useState<AppRoute | null>(null);
   const clock = useSimClock(screen === "detail" ? 500 : screen === "home" ? 1000 : 60000);
 
+  const goToRoute = (r: AppRoute) => {
+    setSelected(r);
+    setScreen("detail");
+  };
+
   return (
     <div className="min-h-dvh flex items-center justify-center md:py-8">
       <div className="relative w-full max-w-[400px] h-dvh md:h-[780px] md:rounded-[2.2rem] md:border-[6px] md:border-neutral-800 md:shadow-2xl overflow-hidden flex flex-col bg-white">
         {screen === "home" && (
           <>
-            <HomeScreen clock={clock} openRoutes={() => setScreen("routes")} />
+            <HomeScreen clock={clock} routes={routes} openRoutes={() => setScreen("routes")} goToRoute={goToRoute} />
             <BottomNav onHome={() => setScreen("home")} />
           </>
         )}
-        {screen === "routes" && (
-          <RoutesScreen
-            routes={routes}
-            back={() => setScreen("home")}
-            pick={(r) => {
-              setSelected(r);
-              setScreen("detail");
-            }}
-          />
-        )}
+        {screen === "routes" && <RoutesScreen routes={routes} back={() => setScreen("home")} pick={goToRoute} />}
         {screen === "detail" && selected && <DetailScreen route={selected} clock={clock} back={() => setScreen("routes")} />}
       </div>
     </div>
