@@ -684,6 +684,26 @@ body {
   [data-expand-default] .card-face > p {
     display: none;
   }
+
+  /* With the image/tagline hidden, a collapsed row was otherwise just
+     bare text with nothing marking it as tappable. This replaces an
+     earlier continuous GSAP "press pulse" (removed on explicit
+     instruction, it read as distracting rather than inviting, and a
+     plain arrow icon on its own looked "unclean") with a static,
+     settings-list-style treatment instead: a row divider plus a small
+     muted chevron (see the svg added next to the title in
+     Career.astro/Projects.astro), both a familiar, universal "this opens
+     something" cue with no animation needed, plus a real :active dip for
+     the one moment that actually matters, the tap itself. */
+  [data-expand-default] .expand-card .card-face {
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-primary-light) 12%, transparent);
+    transition: opacity 0.15s ease;
+  }
+
+  [data-expand-default] .expand-card:active .card-face {
+    opacity: 0.55;
+  }
 }
 
 .expand-card {

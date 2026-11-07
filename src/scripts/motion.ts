@@ -629,6 +629,39 @@ function initPhoneDrag(phone: HTMLElement, container: HTMLElement) {
   };
 }
 
+// window.lenisInstance?.stop() (used when the expand modal opens) only
+// pauses Lenis's own smooth-scroll loop, it does nothing to native touch
+// scrolling, which on mobile mostly bypasses Lenis entirely. Header's
+// mobile menu gets away with calling only .stop() because it's a full-
+// screen opaque overlay, so a scroll behind it would be invisible anyway;
+// the expand modal is a centered card over a visible backdrop, so a
+// visitor could see the page scroll behind it on a real phone. These pin
+// the body in place (position: fixed at the negative of the current
+// scroll offset, the standard technique for this) and restore the exact
+// scroll position on unlock, independent of whatever Lenis itself is
+// doing.
+let bodyScrollLockY: number | null = null;
+function lockBodyScroll() {
+  if (bodyScrollLockY !== null) return;
+  bodyScrollLockY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${bodyScrollLockY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+}
+function unlockBodyScroll() {
+  if (bodyScrollLockY === null) return;
+  const y = bodyScrollLockY;
+  bodyScrollLockY = null;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, y);
+}
+
 function initExpandableGrids() {
   // Shared modal backdrop, created once and reused by every expand-capable
   // grid on the page: only one card can ever be open at a time, so there's
@@ -765,41 +798,12 @@ function initExpandableGrids() {
     // below this point applies without a carousel to expand into.
     if (!carousel) return;
 
-    // Ambient "this row is tappable" cue for mobile's collapsed list rows
-    // (title + date only, no thumbnail image to otherwise hint at
-    // interactivity), replacing a static icon that shipped once and was
-    // removed for visually colliding with other row content. A slow,
-    // continuous, staggered scale pulse instead, GSAP-driven rather than
-    // a CSS @keyframes animation (the marquees learned this the hard way:
-    // prefers-reduced-motion silently kills CSS animations and is on far
-    // more often than it looks, GSAP tweens ignore it). yoyo:true with no
-    // gap-inducing delay between cycles keeps the motion continuous, no
-    // pause between "press down" and "release." Paused while a card is
-    // actually expanded (an ambient hint elsewhere shouldn't compete with
-    // real expanded content) and torn down/rebuilt on resize so crossing
-    // the 768px boundary turns it on or off.
-    let pulseTween: gsap.core.Tween | null = null;
-    function setupPulse() {
-      pulseTween?.kill();
-      pulseTween = null;
-      gsap.set(cards, { clearProps: 'scale' });
-      if (window.innerWidth >= 768) return;
-      pulseTween = gsap.to(cards, {
-        scale: 0.97,
-        duration: 1.4,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true,
-        stagger: { each: 0.15, repeat: -1, yoyoEase: true },
-      });
-      if (grid.hasAttribute('data-expanded')) pulseTween.pause();
-    }
-    setupPulse();
-    let pulseResizeTimer: ReturnType<typeof setTimeout>;
-    window.addEventListener('resize', () => {
-      clearTimeout(pulseResizeTimer);
-      pulseResizeTimer = setTimeout(setupPulse, 200);
-    });
+    // Mobile's "this row is tappable" cue used to be a continuous GSAP
+    // press-pulse on every collapsed card. Removed on explicit
+    // instruction (it read as distracting, not inviting): the row
+    // divider + chevron in global.css/Career.astro/Projects.astro now
+    // carry that job statically, with a plain CSS :active dip for actual
+    // press feedback, no JS or ongoing animation needed.
 
     function syncLabels(slug: string) {
       const activeIndex = labels.findIndex((label) => label.dataset.slug === slug);
@@ -883,7 +887,14 @@ function initExpandableGrids() {
       document.removeEventListener('keydown', onKeydown);
       grid.removeAttribute('data-expanded');
       syncLabels('');
-      pulseTween?.play();
+      unlockBodyScroll();
+      // The body was briefly out of normal flow (position: fixed) while
+      // locked, during which document.documentElement.scrollHeight reads
+      // as just the viewport height; re-measure now that it's back, so a
+      // stray lenis.resize() mid-lock (a ScrollTrigger refresh unrelated
+      // to the modal, say) can't leave the real page's scroll limit wrong
+      // after this.
+      window.lenisInstance?.resize();
       if (activeCloseModal === closeModal) activeCloseModal = null;
     }
 
@@ -906,7 +917,6 @@ function initExpandableGrids() {
       }
 
       const wasExpanded = grid.hasAttribute('data-expanded');
-      pulseTween?.pause();
 
       if (openCard && openCard !== card) {
         openCard.removeAttribute('data-modal-open');
@@ -943,6 +953,7 @@ function initExpandableGrids() {
         );
         gsap.fromTo(modalBackdrop, { opacity: 0 }, { opacity: 1, duration: 0.25 });
         window.lenisInstance?.stop();
+        lockBodyScroll();
         document.addEventListener('keydown', onKeydown);
       }
 

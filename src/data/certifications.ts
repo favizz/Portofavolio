@@ -1,5 +1,3 @@
-import { facts } from './facts';
-
 export const certifications = [
   {
     slug: 'azure-ai-900',
@@ -28,12 +26,5 @@ export const certifications = [
     issuer: 'BNSP',
     date: 'Sep 2026',
     documentUrl: 'https://drive.google.com/file/d/1r3NZU_sIHwBgoWcsx7vWsK9r0s1yZJLh/view?usp=sharing',
-  },
-  {
-    slug: 'graduation-certificate',
-    short: 'Graduation Cert',
-    issuer: facts.education.institution,
-    date: 'Jul 2026',
-    documentUrl: '/cv/graduation-certificate.pdf',
   },
 ];

@@ -113,6 +113,9 @@ const sortedExperience = [...experience].sort(
                       {job.shortRole ?? job.role}
                     </h3>
                     <span class="flex-shrink-0 text-sm text-text-muted">{job.period}</span>
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 shrink-0 self-center text-text-muted/50 md:hidden" aria-hidden="true">
+                      <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
                   </div>
                   <p class="mt-1 text-base text-text-muted">{job.short}</p>
                   {/* Mobile's collapsed row hides the paragraph above
