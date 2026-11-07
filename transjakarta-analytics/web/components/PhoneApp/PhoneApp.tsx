@@ -81,9 +81,12 @@ function HomeScreen({ clock, openRoutes }: { clock: SimClock; openRoutes: () => 
         <div className="text-lg font-light">
           Hello, <span className="font-bold">Rider</span>
         </div>
-        <button onClick={openRoutes} className="mt-3 w-full rounded-xl bg-white/95 text-neutral-400 text-sm text-left px-4 py-3">
-          Search Destination
-        </button>
+        <div
+          aria-disabled="true"
+          className="mt-3 w-full rounded-xl bg-white/50 text-white/60 text-sm text-left px-4 py-3 cursor-not-allowed select-none"
+        >
+          Search Destination (not available in this demo)
+        </div>
       </div>
       <div className="relative flex-1 min-h-0">
         <MapView lines={[]} buses={[]} fit={false} />
@@ -275,7 +278,7 @@ function TimePlanner({
     if (!best) return null;
     const arriveAt = new Date(now.getTime() + Math.max(0, best.delta) * 1000);
     const minutesAway = Math.max(0, Math.round(best.delta / 60));
-    const [lo, hi] = occupancyRangeAt(routeKey, best.b.index, stationIdx, arriveAt);
+    const [lo, hi] = occupancyRangeAt(routeKey, best.b.index, stationIdx, arriveAt, direction.stops.length);
     return { stop, arriveAt, minutesAway, lo, hi, busId: `SIM-${String(best.b.index + 1).padStart(2, "0")}` };
   }, [stationIdx, planBuses, direction, now, routeKey]);
 
@@ -366,7 +369,7 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
     return simulatedFleet(direction, now, { fallbackHeadwaySecs: fb, max: 6 }).map((b) => ({
       ...b,
       id: `SIM-${String(b.index + 1).padStart(2, "0")}`,
-      count: simulatedOccupancy(routeKey, b.index, b.currentStopIndex, now),
+      count: simulatedOccupancy(routeKey, b.index, b.currentStopIndex, now, direction.stops.length),
     }));
   }, [direction, now, fb, routeKey]);
 
@@ -381,7 +384,7 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
       const delta = stop.elapsedSecs - sel.phase;
       const status = delta < -45 ? "passed" : delta <= 45 ? "now" : "next";
       const at = status === "now" ? now : new Date(now.getTime() + delta * 1000);
-      return { stop, k, delta, status, time: hhmm(at), count: simulatedOccupancy(routeKey, sel.index, k, at) };
+      return { stop, k, delta, status, time: hhmm(at), count: simulatedOccupancy(routeKey, sel.index, k, at, direction.stops.length) };
     });
   }, [direction, sel, now, routeKey]);
 

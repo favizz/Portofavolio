@@ -653,6 +653,15 @@ body {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
+    /* The icon itself is plain white with no outline, so on a light
+       photo (or a light patch of a dark one) it can disappear entirely.
+       A dark, semi-opaque chip behind it (the icon's own opposite color)
+       guarantees contrast against any photo, light or dark, without
+       needing to know the image's actual tone. Desktop is left alone,
+       its fixed-to-viewport placement rarely sits directly over the
+       photo the way mobile's corner-of-the-image placement does. */
+    background: rgba(17, 24, 39, 0.55);
+    border-radius: 9999px;
   }
 }
 

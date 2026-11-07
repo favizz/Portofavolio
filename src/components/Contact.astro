@@ -71,11 +71,10 @@ const inputClass =
   form?.addEventListener('submit', (event) => {
     event.preventDefault();
     const data = new FormData(form);
-    const name = String(data.get('name') ?? '');
     const subject = String(data.get('subject') ?? '');
     const message = String(data.get('message') ?? '');
 
-    const body = `Hi ${contactFirstName},\n\n${message}\n\nFrom: ${name}`;
+    const body = `Hi ${contactFirstName},\n\n${message}`;
     const url =
       `https://mail.google.com/mail/?view=cm&fs=1&to=${contactEmail}` +
       `&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
