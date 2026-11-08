@@ -8,7 +8,8 @@ import { BUS_CAPACITY, occupancyRangeAt, simulatedOccupancy } from "@/lib/fleetO
 import type { MapBus, MapLine, MapStop } from "./MapView";
 import { DEMO_ROUTE_IDS, getSnapshotFleet } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
-import { DEMO_LOCATION, nearestStation } from "@/lib/locate";
+import { DEMO_LOCATION } from "@/lib/locate";
+import { bestDeparture, planTrips, searchDestinations } from "@/lib/tripPlanner";
 import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
 import { RouteBadge, TJ_BLUE } from "./shared";
 
@@ -24,7 +25,7 @@ export interface AppRoute {
   route_color: string;
 }
 
-type Screen = "home" | "routes" | "detail";
+type Screen = "home" | "routes" | "search" | "detail";
 
 function occColors(count: number) {
   const pct = count / BUS_CAPACITY;
@@ -78,139 +79,257 @@ function BottomNav({ onHome }: { onHome: () => void }) {
   );
 }
 
-/**
- * Nearest-station + quiet-time recommendation for the home screen. There's
- * no real routing here (no graph of which route gets from an arbitrary
- * "destination" to another), so this stays to what's honestly computable
- * from the bundled data: the real stop closest to the fixed demo location,
- * and, within a window the visitor sets (go time, defaulting to now, and
- * an arrival deadline), the least-crowded real hour on that stop's route.
- */
-function NearestStationCard({ routes, clock, goToRoute }: { routes: AppRoute[]; clock: SimClock; goToRoute: (r: AppRoute) => void }) {
-  const station = useMemo(() => nearestStation(routes), [routes]);
-  const route = useMemo(() => (station ? routes.find((r) => r.route_id === station.routeId) ?? null : null), [routes, station]);
-  const fleet = station ? getSnapshotFleet(station.routeId) : null;
-  const direction = fleet?.directions[station?.directionIndex ?? 0];
-
-  const [goMinutes, setGoMinutes] = useState<number | null>(null);
-  const [arriveMinutes, setArriveMinutes] = useState<number | null>(null);
-  useEffect(() => {
-    if (goMinutes !== null) return;
-    const nowM = jakartaMinutesOfDay(clock.now);
-    setGoMinutes(nowM);
-    setArriveMinutes((nowM + 120) % 1440);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const advice = useMemo(
-    () => (fleet && direction ? adviseRide(fleet.directions, station!.directionIndex, clock.now) : null),
-    [fleet, direction, station, clock.now]
-  );
-
-  const recommendation = useMemo(() => {
-    if (!advice || goMinutes === null || arriveMinutes === null) return null;
-    const arriveAdj = arriveMinutes > goMinutes ? arriveMinutes : arriveMinutes + 1440;
-    const goHour = Math.floor(goMinutes / 60);
-    const arriveHourExclusive = Math.max(goHour + 1, Math.ceil(arriveAdj / 60));
-    const extended = [...advice.hours, ...advice.hours.map((h) => ({ ...h, hour: h.hour + 24 }))];
-    const inWindow = extended.filter((h) => h.hour >= goHour && h.hour < arriveHourExclusive && h.index !== null);
-    if (!inWindow.length) return null;
-    const best = inWindow.reduce((a, b) => (b.index! < a.index! ? b : a));
-    return { hour: best.hour % 24, level: best.level! };
-  }, [advice, goMinutes, arriveMinutes]);
-
-  if (!station || !route) return null;
-  const distanceLabel = station.distanceMeters < 1000 ? `${Math.round(station.distanceMeters / 10) * 10} m` : `${(station.distanceMeters / 1000).toFixed(1)} km`;
-
-  return (
-    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-neutral-900">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Nearest station</div>
-          <div className="text-[15px] font-extrabold leading-tight mt-0.5">{station.stopName}</div>
-          <div className="text-xs text-neutral-500 mt-0.5">
-            ~{distanceLabel} from your demo location, on Route {route.route_short_name}
-          </div>
-        </div>
-        <RouteBadge shortName={route.route_short_name} color={route.route_color} size={34} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        <label className="block">
-          <span className="text-[11px] text-neutral-500">Leave after</span>
-          <input
-            type="time"
-            step={60}
-            value={goMinutes === null ? "" : fmtHM(goMinutes)}
-            onChange={(e) => {
-              const m = parseHM(e.target.value);
-              if (m !== null) setGoMinutes(m);
-            }}
-            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm"
-          />
-        </label>
-        <label className="block">
-          <span className="text-[11px] text-neutral-500">Arrive by</span>
-          <input
-            type="time"
-            step={60}
-            value={arriveMinutes === null ? "" : fmtHM(arriveMinutes)}
-            onChange={(e) => {
-              const m = parseHM(e.target.value);
-              if (m !== null) setArriveMinutes(m);
-            }}
-            className="mt-1 w-full rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm"
-          />
-        </label>
-      </div>
-
-      <div className="mt-3 rounded-lg bg-white px-3 py-2.5">
-        {recommendation ? (
-          <div className="text-xs text-neutral-700">
-            Quietest around <b>{String(recommendation.hour).padStart(2, "0")}:00</b>:{" "}
-            <b style={{ color: LEVEL_COLOR[recommendation.level] }}>{LEVEL_TEXT[recommendation.level]}</b>
-          </div>
-        ) : (
-          <div className="text-xs text-neutral-500">No real schedule data for that window on this route.</div>
-        )}
-      </div>
-
-      <button onClick={() => goToRoute(route)} className="mt-3 w-full rounded-lg py-2.5 text-sm font-semibold text-white" style={{ background: TJ_BLUE }}>
-        View Route {route.route_short_name}
-      </button>
-      <div className="text-[10px] text-neutral-400 mt-2 leading-snug">
-        Demo: "nearest station" is measured from a fixed demo location, not your real GPS. The quiet-time estimate comes from real bus frequency and a typical commuter pattern, not measured ridership.
-      </div>
-    </div>
-  );
-}
-
-function HomeScreen({ clock, routes, openRoutes, goToRoute }: { clock: SimClock; routes: AppRoute[]; openRoutes: () => void; goToRoute: (r: AppRoute) => void }) {
+function HomeScreen({ clock, openRoutes, openSearch }: { clock: SimClock; openRoutes: () => void; openSearch: () => void }) {
+  const quick = [
+    { label: "Route", icon: "⤳", onClick: openRoutes },
+    { label: "Bus Stop", icon: "▥" },
+    { label: "BRT Ticket", icon: "▭" },
+    { label: "Aspiration", icon: "☺" },
+  ];
   return (
     <>
-      <div className="px-4 pt-5 pb-4 text-white shrink-0" style={{ background: TJ_BLUE }}>
+      <div className="px-4 pt-5 pb-6 text-white shrink-0" style={{ background: TJ_BLUE }}>
         <div className="text-lg font-light">
           Hello, <span className="font-bold">Rider</span>
         </div>
       </div>
       <div className="relative flex-1 min-h-0">
-        <MapView lines={[]} buses={[]} fit={false} center={[DEMO_LOCATION.lat, DEMO_LOCATION.lon]} zoom={16} myLocation={{ position: [DEMO_LOCATION.lat, DEMO_LOCATION.lon], label: DEMO_LOCATION.label }} />
+        <MapView lines={[]} buses={[]} fit={false} />
         <ClockControl clock={clock} />
-      </div>
-      <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] overflow-y-auto max-h-[62%] text-neutral-900">
-        <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
-        <button onClick={openRoutes} className="w-full rounded-xl p-3 text-white flex items-center justify-between gap-3" style={{ background: TJ_BLUE }}>
-          <div className="text-left">
-            <div className="font-bold text-sm">Where are you headed?</div>
-            <div className="text-xs text-blue-100">Browse every route in this demo.</div>
-          </div>
-          <span className="text-xl">→</span>
+        <button
+          onClick={openSearch}
+          aria-label="Search destination"
+          className="absolute right-4 bottom-8 z-[650] w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center"
+          style={{ background: TJ_BLUE }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-4-4" />
+          </svg>
         </button>
-        <div className="mt-3">
-          <NearestStationCard routes={routes} clock={clock} goToRoute={goToRoute} />
+      </div>
+      <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
+        <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
+        <div className="rounded-xl p-3 text-white flex items-center justify-between gap-3" style={{ background: TJ_BLUE }}>
+          <div>
+            <div className="font-bold text-sm">CrowdEase</div>
+            <div className="text-xs text-blue-100">See how full your bus is before it arrives.</div>
+          </div>
+          <button onClick={openSearch} className="bg-white text-xs font-semibold rounded-lg px-3 py-2 shrink-0" style={{ color: TJ_BLUE }}>
+            Try it
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-2 mt-3">
+          {quick.map((q) =>
+            q.onClick ? (
+              <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-1 text-[11px] font-extrabold" style={{ color: TJ_BLUE }}>
+                <span className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl text-white shadow-lg" style={{ background: TJ_BLUE }}>
+                  {q.icon}
+                </span>
+                {q.label}
+              </button>
+            ) : (
+              <div key={q.label} className="flex flex-col items-center gap-1 text-[11px] text-neutral-400">
+                <span className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center text-xl grayscale">{q.icon}</span>
+                {q.label}
+              </div>
+            )
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+const LEVEL_PILL: Record<Level, { bg: string; fg: string }> = {
+  comfortable: { bg: "#dcfce7", fg: "#15803d" },
+  moderate: { bg: "#fef3c7", fg: "#b45309" },
+  crowded: { bg: "#fee2e2", fg: "#b91c1c" },
+};
+
+/** Google-Maps-style: type where you're going (a stop), the app picks the bus. Direct rides only; the bundled data has no transfer graph. */
+function SearchScreen({
+  routes,
+  clock,
+  back,
+  openRoute,
+  dest,
+  setDest,
+}: {
+  routes: AppRoute[];
+  clock: SimClock;
+  back: () => void;
+  openRoute: (r: AppRoute, directionIndex: number) => void;
+  dest: string | null;
+  setDest: (d: string | null) => void;
+}) {
+  const [query, setQuery] = useState(dest ?? "");
+  const [planIdx, setPlanIdx] = useState(0);
+  const [leaveMin, setLeaveMin] = useState<number>(() => jakartaMinutesOfDay(clock.now));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!dest) inputRef.current?.focus();
+  }, [dest]);
+
+  const suggestions = useMemo(() => searchDestinations(query), [query]);
+  const plans = useMemo(() => (dest ? planTrips(dest) : []), [dest]);
+  const plan = plans[Math.min(planIdx, Math.max(0, plans.length - 1))];
+  const route = plan ? routes.find((r) => r.route_id === plan.routeId) ?? null : null;
+  const fleet = plan ? getSnapshotFleet(plan.routeId) : null;
+  // Recompute per demo hour, not every clock tick.
+  const hourKey = Math.floor(clock.now.getTime() / 3600000);
+  const departure = useMemo(
+    () => (fleet && plan ? bestDeparture(fleet.directions, plan.directionIndex, new Date(hourKey * 3600000), leaveMin) : null),
+    [fleet, plan, leaveMin, hourKey]
+  );
+  const shortName = (id: string) => routes.find((r) => r.route_id === id)?.route_short_name ?? id;
+  const colorOf = (id: string) => routes.find((r) => r.route_id === id)?.route_color ?? "666666";
+
+  const choose = (name: string) => {
+    setDest(name);
+    setQuery(name);
+    setPlanIdx(0);
+  };
+
+  const walk = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
+  const here: [number, number] = [DEMO_LOCATION.lat, DEMO_LOCATION.lon];
+
+  return (
+    <div className="flex flex-col h-full bg-white text-neutral-900">
+      <div className="px-3 pt-4 pb-3 shrink-0 shadow-sm z-[700] bg-white">
+        <div className="flex items-center gap-2">
+          <button onClick={dest ? () => setDest(null) : back} className="w-9 h-9 rounded-full text-2xl leading-none shrink-0" aria-label="Back" style={{ color: TJ_BLUE }}>
+            &lsaquo;
+          </button>
+          <div className="flex-1 rounded-full bg-neutral-100 flex items-center px-4">
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (dest) setDest(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && suggestions[0]) choose(suggestions[0].name);
+              }}
+              placeholder="Where to?"
+              className="flex-1 bg-transparent py-2.5 text-sm outline-none"
+            />
+            {query && (
+              <button onClick={() => { setQuery(""); setDest(null); }} className="text-neutral-400 text-lg leading-none" aria-label="Clear">
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-neutral-500 mt-2 ml-11">
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ background: TJ_BLUE }} />
+          From your location (demo)
+        </div>
+      </div>
+
+      {!dest ? (
+        <div className="flex-1 overflow-y-auto">
+          {query.trim() === "" ? (
+            <div className="px-5 py-6 text-sm text-neutral-400">Type a stop name, e.g. Blok M, Harmoni, Kota.</div>
+          ) : suggestions.length === 0 ? (
+            <div className="px-5 py-6 text-sm text-neutral-400">No stop called “{query}” on the routes in this demo.</div>
+          ) : (
+            suggestions.map((s) => (
+              <button key={s.name} onClick={() => choose(s.name)} className="w-full flex items-center gap-3 px-4 py-3 border-b border-neutral-100 text-left">
+                <span className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 shrink-0">⌖</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium truncate">{s.name}</span>
+                </span>
+                <span className="flex gap-1 shrink-0">
+                  {s.routeIds.slice(0, 3).map((id) => (
+                    <RouteBadge key={id} shortName={shortName(id)} color={colorOf(id)} size={20} />
+                  ))}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="relative flex-1 min-h-0">
+            <MapView
+              lines={plan ? [{ positions: [here, plan.board.position], color: "#9ca3af" }, { positions: plan.segment, color: `#${colorOf(plan.routeId)}` }] : []}
+              ends={plan ? { start: plan.board.position, end: plan.alight.position } : undefined}
+              buses={[]}
+              fit={!!plan}
+              fitKey={plan ? `${plan.routeId}-${plan.directionIndex}-${plan.alight.index}` : ""}
+              center={here}
+              zoom={15}
+              myLocation={{ position: here, label: "You (demo)" }}
+            />
+          </div>
+          <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
+            <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
+            {!plan || !route ? (
+              <div className="text-sm text-neutral-600 py-2">
+                No direct bus to <b>{dest}</b> from here in this demo. Transfers aren&apos;t covered yet.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <RouteBadge shortName={route.route_short_name} color={route.route_color} size={36} />
+                  <div className="min-w-0">
+                    <div className="font-bold text-[15px] leading-tight truncate">To {plan.alight.name}</div>
+                    <div className="text-xs text-neutral-500 truncate">
+                      Walk {walk(plan.walkMeters)} to {plan.board.name} · {plan.rideStops} {plan.rideStops === 1 ? "stop" : "stops"}
+                      {plan.rideSecs !== null && plan.rideSecs > 0 ? ` · ~${Math.max(1, Math.round(plan.rideSecs / 60))} min` : ""}
+                    </div>
+                  </div>
+                </div>
+
+                {departure && (
+                  <div className="mt-3 rounded-xl border border-neutral-200 px-3 py-2.5 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] text-neutral-500">{departure.quiet ? "Best time to leave" : "Least crowded time"}</div>
+                      <div className="text-xl font-extrabold leading-tight">
+                        {departure.isNow ? "Now" : `${String(departure.hour).padStart(2, "0")}:00`}
+                        {departure.dayOffset === 1 && <span className="text-xs font-semibold text-neutral-500"> tomorrow</span>}
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold rounded-full px-2.5 py-1" style={{ background: LEVEL_PILL[departure.level].bg, color: LEVEL_PILL[departure.level].fg }}>
+                      {departure.nearEmpty ? "Near empty" : departure.quiet ? "Seats likely" : LEVEL_TEXT[departure.level]}
+                    </span>
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
+                  <label className="flex items-center gap-2">
+                    Leave after
+                    <input
+                      type="time"
+                      step={60}
+                      value={fmtHM(leaveMin)}
+                      onChange={(e) => {
+                        const m = parseHM(e.target.value);
+                        if (m !== null) setLeaveMin(m);
+                      }}
+                      className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-neutral-800"
+                    />
+                  </label>
+                  {plans.length > 1 && (
+                    <button onClick={() => setPlanIdx((i) => (i + 1) % plans.length)} className="font-semibold" style={{ color: TJ_BLUE }}>
+                      Other route ({plans.length - 1})
+                    </button>
+                  )}
+                </div>
+
+                <button onClick={() => openRoute(route, plan.directionIndex)} className="mt-3 w-full rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: TJ_BLUE }}>
+                  See live buses
+                </button>
+                <div className="text-[10px] text-neutral-400 mt-2 text-center">Demo location · crowding estimated from real schedules and typical demand</div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -428,18 +547,18 @@ function TimePlanner({
   );
 }
 
-function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => void; clock: SimClock }) {
+function DetailScreen({ route, initialDir = 0, back, clock }: { route: AppRoute; initialDir?: number; back: () => void; clock: SimClock }) {
   const now = clock.now;
   const fleet = getSnapshotFleet(route.route_id);
-  const [dir, setDir] = useState(0);
+  const [dir, setDir] = useState(initialDir);
   const [selIdx, setSelIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const color = `#${route.route_color}`;
 
   useEffect(() => {
-    setDir(0);
+    setDir(initialDir);
     setSelIdx(0);
-  }, [route.route_id]);
+  }, [route.route_id, initialDir]);
 
   const direction = fleet?.directions[dir];
   const routeKey = `${route.route_short_name}${direction?.directionId ?? 0}`;
@@ -608,10 +727,15 @@ function DetailScreen({ route, back, clock }: { route: AppRoute; back: () => voi
 export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
   const [screen, setScreen] = useState<Screen>("home");
   const [selected, setSelected] = useState<AppRoute | null>(null);
+  const [selectedDir, setSelectedDir] = useState(0);
+  const [detailBack, setDetailBack] = useState<Screen>("routes");
+  const [searchDest, setSearchDest] = useState<string | null>(null);
   const clock = useSimClock(screen === "detail" ? 500 : screen === "home" ? 1000 : 60000);
 
-  const goToRoute = (r: AppRoute) => {
+  const goToRoute = (r: AppRoute, directionIndex = 0, from: Screen = "routes") => {
     setSelected(r);
+    setSelectedDir(directionIndex);
+    setDetailBack(from);
     setScreen("detail");
   };
 
@@ -620,12 +744,16 @@ export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
       <div className="relative w-full max-w-[400px] h-dvh md:h-[780px] md:rounded-[2.2rem] md:border-[6px] md:border-neutral-800 md:shadow-2xl overflow-hidden flex flex-col bg-white">
         {screen === "home" && (
           <>
-            <HomeScreen clock={clock} routes={routes} openRoutes={() => setScreen("routes")} goToRoute={goToRoute} />
+            <HomeScreen clock={clock} openRoutes={() => setScreen("routes")} openSearch={() => {
+                setSearchDest(null);
+                setScreen("search");
+              }} />
             <BottomNav onHome={() => setScreen("home")} />
           </>
         )}
-        {screen === "routes" && <RoutesScreen routes={routes} back={() => setScreen("home")} pick={goToRoute} />}
-        {screen === "detail" && selected && <DetailScreen route={selected} clock={clock} back={() => setScreen("routes")} />}
+        {screen === "routes" && <RoutesScreen routes={routes} back={() => setScreen("home")} pick={(r) => goToRoute(r)} />}
+        {screen === "search" && <SearchScreen routes={routes} clock={clock} back={() => setScreen("home")} openRoute={(r, d) => goToRoute(r, d, "search")} dest={searchDest} setDest={setSearchDest} />}
+        {screen === "detail" && selected && <DetailScreen route={selected} initialDir={selectedDir} clock={clock} back={() => setScreen(detailBack)} />}
       </div>
     </div>
   );
