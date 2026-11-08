@@ -14,6 +14,7 @@ const JAKARTA_BOUNDS: L.LatLngBoundsExpression = [
 export interface MapLine {
   positions: [number, number][];
   color: string;
+  dashArray?: string;
 }
 export interface MapStop {
   id: string;
@@ -122,10 +123,10 @@ export default function MapView({
       <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {fit && <Fit lines={lines} fitKey={fitKey} />}
       {lines.map((l, i) => (
-        <Polyline key={`c${i}`} positions={l.positions} pathOptions={{ color: "#fff", weight: 9, opacity: 0.95 }} />
+        <Polyline key={`c${i}`} positions={l.positions} pathOptions={{ color: "#fff", weight: 9, opacity: l.dashArray ? 0 : 0.95 }} />
       ))}
       {lines.map((l, i) => (
-        <Polyline key={i} positions={l.positions} pathOptions={{ color: l.color, weight: 5, opacity: 1 }} />
+        <Polyline key={i} positions={l.positions} pathOptions={{ color: l.color, weight: l.dashArray ? 6 : 5, opacity: 1, dashArray: l.dashArray, lineCap: l.dashArray ? "round" : undefined }} />
       ))}
       {stops.map((s, i) => (
         // A handful of real routes revisit the same physical stop twice within one direction
@@ -152,7 +153,7 @@ export default function MapView({
       ))}
       {myLocation && (
         <Marker position={myLocation.position} icon={myLocationIcon()} zIndexOffset={900}>
-          <Tooltip direction="top" offset={[0, -8]} permanent opacity={0.95}>
+          <Tooltip direction="right" offset={[10, 0]} permanent opacity={0.95}>
             {myLocation.label}
           </Tooltip>
         </Marker>

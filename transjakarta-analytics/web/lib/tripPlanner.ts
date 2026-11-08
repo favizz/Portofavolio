@@ -124,32 +124,53 @@ export function planTrips(destinationName: string): TripPlan[] {
 }
 
 // The crowding index is relative to the route's own busiest hour (an
-// estimate: real headways x an assumed demand curve). An hour counts as
-// quiet when it sits in the comfortable band AND the estimate around it
-// agrees: smoothed with its neighbours it stays comfortable, and at least
-// one neighbour is quiet too. That rejects a lone dip boxed in by rush
-// hours, which is more likely a schedule artefact than a real lull.
-const QUIET = 0.45;
+// estimate: real headways x an assumed demand curve). Levels: green below
+// 0.45, orange 0.45-0.75, red above. An hour is "good enough" when it sits
+// at or below the middle of the orange band (0.60) AND at least one
+// neighbouring hour does too: a single quiet hour boxed in by busy hours on
+// both sides is more likely a schedule artefact than a real lull, so it is
+// skipped.
+const GOOD = 0.6;
+const SEATS = 0.45;
 const NEAR_EMPTY = 0.25;
 const FIRST_RIDE_HOUR = 5;
 const LAST_RIDE_HOUR = 22;
+const DAY = 1440;
+
+export interface DepartureQuery {
+  /** Earliest the rider can leave, minutes after Jakarta midnight. */
+  leaveMin: number;
+  /** Latest acceptable arrival, minutes after Jakarta midnight (same day), or null for no limit. */
+  arriveByMin: number | null;
+  walkMin: number;
+  rideMin: number;
+}
+
+export type DepartureStatus = "good" | "fallback" | "late" | "tomorrow";
 
 export interface Departure {
-  hour: number;
+  status: DepartureStatus;
+  /** Minutes after midnight of the day given by dayOffset. */
+  leaveAt: number;
+  boardAt: number;
+  arriveAt: number;
   dayOffset: 0 | 1;
   level: Level;
-  nearEmpty: boolean;
-  quiet: boolean;
-  isNow: boolean;
+  index: number;
+  /** "Near empty" / "Seats likely" / "Fairly quiet" / level text. */
+  label: string;
+}
+
+function at(hours: HourAdvice[], h: number): number | null {
+  return hours[h]?.index ?? null;
 }
 
 function smoothed(hours: HourAdvice[], h: number): number | null {
-  const at = (k: number) => hours[k]?.index ?? null;
-  const c = at(h);
+  const c = at(hours, h);
   if (c === null) return null;
   let sum = c * 2;
   let w = 2;
-  for (const n of [at(h - 1), at(h + 1)]) {
+  for (const n of [at(hours, h - 1), at(hours, h + 1)]) {
     if (n !== null) {
       sum += n;
       w += 1;
@@ -158,41 +179,73 @@ function smoothed(hours: HourAdvice[], h: number): number | null {
   return sum / w;
 }
 
-function isQuiet(hours: HourAdvice[], h: number): boolean {
-  const own = hours[h]?.index ?? null;
-  const s = smoothed(hours, h);
-  if (own === null || s === null || own > QUIET || s > QUIET) return false;
-  const neighbours = [hours[h - 1]?.index ?? null, hours[h + 1]?.index ?? null].filter((v): v is number => v !== null);
-  return neighbours.length === 0 || neighbours.some((v) => v <= QUIET);
+function isGood(hours: HourAdvice[], h: number): boolean {
+  const own = at(hours, h);
+  if (own === null || own > GOOD || h < FIRST_RIDE_HOUR || h > LAST_RIDE_HOUR) return false;
+  const neighbours = [at(hours, h - 1), at(hours, h + 1)].filter((v): v is number => v !== null);
+  return neighbours.length === 0 || neighbours.some((v) => v <= GOOD);
 }
 
-function pick(hours: HourAdvice[], fromHour: number) {
-  for (let h = Math.max(fromHour, FIRST_RIDE_HOUR); h <= LAST_RIDE_HOUR; h++) if (isQuiet(hours, h)) return h;
-  return null;
+function label(index: number, level: Level): string {
+  if (index <= NEAR_EMPTY) return "Near empty";
+  if (index <= SEATS) return "Seats likely";
+  if (index <= GOOD) return "Fairly quiet";
+  return level === "crowded" ? "Crowded" : "Busy";
 }
 
-/** The earliest quiet hour from `fromMinutes` on (see `isQuiet`), else tomorrow's first, else the least crowded hour left today. */
-export function bestDeparture(directions: FleetDirection[], directionIndex: number, now: Date, fromMinutes: number): Departure | null {
-  const fromHour = Math.floor(fromMinutes / 60);
-  const make = (hours: HourAdvice[], h: number, dayOffset: 0 | 1, quiet: boolean): Departure => ({
-    hour: h,
-    dayOffset,
-    level: hours[h].level ?? "comfortable",
-    nearEmpty: quiet && (hours[h].index ?? 1) <= NEAR_EMPTY,
-    quiet,
-    isNow: dayOffset === 0 && h === fromHour,
-  });
+const waitMin = (hours: HourAdvice[], h: number) => Math.round((hours[h]?.headwaySecs ?? 600) / 120);
 
-  const today = adviseRide(directions, directionIndex, now);
-  const h0 = pick(today.hours, fromHour);
-  if (h0 !== null) return make(today.hours, h0, 0, true);
+/**
+ * When to leave. Walks forward from the moment the rider could first board
+ * (leave time + walk) through each later hour, and returns the earliest
+ * boarding time whose hour is good enough (see `isGood`) and still arrives by
+ * `arriveByMin`. If none is good enough it returns the least crowded option
+ * that still arrives in time ("fallback"), or "late" when even leaving now
+ * misses the arrive-by time. With no arrive-by limit and nothing good left
+ * today, it suggests tomorrow's first good hour.
+ */
+export function planDeparture(directions: FleetDirection[], directionIndex: number, now: Date, q: DepartureQuery): Departure | null {
+  const today = adviseRide(directions, directionIndex, now).hours;
+  const firstBoard = q.leaveMin + q.walkMin;
 
-  const tomorrow = adviseRide(directions, directionIndex, new Date(now.getTime() + 86400000));
-  const h1 = pick(tomorrow.hours, 0);
-  if (h1 !== null) return make(tomorrow.hours, h1, 1, true);
+  const candidates: { boardAt: number; hour: number }[] = [];
+  if (firstBoard < DAY) {
+    const h0 = Math.floor(firstBoard / 60);
+    if (h0 >= FIRST_RIDE_HOUR) candidates.push({ boardAt: firstBoard, hour: h0 });
+    for (let h = Math.max(h0 + 1, FIRST_RIDE_HOUR); h <= LAST_RIDE_HOUR; h++) candidates.push({ boardAt: h * 60, hour: h });
+  }
+  const served = candidates.filter((c) => at(today, c.hour) !== null);
+  const make = (hours: HourAdvice[], c: { boardAt: number; hour: number }, status: DepartureStatus, dayOffset: 0 | 1): Departure => {
+    const index = at(hours, c.hour)!;
+    const level = hours[c.hour].level ?? "comfortable";
+    return {
+      status,
+      leaveAt: c.boardAt - q.walkMin,
+      boardAt: c.boardAt,
+      arriveAt: c.boardAt + waitMin(hours, c.hour) + q.rideMin,
+      dayOffset,
+      level,
+      index,
+      label: label(index, level),
+    };
+  };
+  const arrival = (c: { boardAt: number; hour: number }) => c.boardAt + waitMin(today, c.hour) + q.rideMin;
+  const inTime = served.filter((c) => q.arriveByMin === null || arrival(c) <= q.arriveByMin);
 
-  const rest = today.hours.filter((h) => h.hour >= fromHour && h.index !== null);
-  if (!rest.length) return null;
-  const least = rest.reduce((a, b) => ((smoothed(today.hours, b.hour) ?? 1) < (smoothed(today.hours, a.hour) ?? 1) ? b : a));
-  return make(today.hours, least.hour, 0, false);
+  const good = inTime.find((c) => isGood(today, c.hour));
+  if (good) return make(today, good, "good", 0);
+
+  if (q.arriveByMin !== null) {
+    if (!inTime.length) return served.length ? make(today, served[0], "late", 0) : null;
+    const least = inTime.reduce((a, b) => (at(today, b.hour)! < at(today, a.hour)! ? b : a));
+    return make(today, least, "fallback", 0);
+  }
+
+  const tomorrow = adviseRide(directions, directionIndex, new Date(now.getTime() + 86400000)).hours;
+  for (let h = FIRST_RIDE_HOUR; h <= LAST_RIDE_HOUR; h++) {
+    if (isGood(tomorrow, h)) return make(tomorrow, { boardAt: h * 60, hour: h }, "tomorrow", 1);
+  }
+  if (!served.length) return null;
+  const least = served.reduce((a, b) => ((smoothed(today, b.hour) ?? 1) < (smoothed(today, a.hour) ?? 1) ? b : a));
+  return make(today, least, "fallback", 0);
 }

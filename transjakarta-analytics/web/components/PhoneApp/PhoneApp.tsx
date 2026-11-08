@@ -9,7 +9,7 @@ import type { MapBus, MapLine, MapStop } from "./MapView";
 import { DEMO_ROUTE_IDS, getSnapshotFleet } from "@/lib/fleetData";
 import { adviseRide, fmtRange, type Level } from "@/lib/rideAdvisor";
 import { DEMO_LOCATION } from "@/lib/locate";
-import { bestDeparture, planTrips, searchDestinations } from "@/lib/tripPlanner";
+import { planDeparture, planTrips, searchDestinations, type Departure } from "@/lib/tripPlanner";
 import ClockControl, { useSimClock, type SimClock } from "./ClockControl";
 import { RouteBadge, TJ_BLUE } from "./shared";
 
@@ -141,13 +141,123 @@ function HomeScreen({ clock, openRoutes, openSearch }: { clock: SimClock; openRo
   );
 }
 
-const LEVEL_PILL: Record<Level, { bg: string; fg: string }> = {
-  comfortable: { bg: "#dcfce7", fg: "#15803d" },
-  moderate: { bg: "#fef3c7", fg: "#b45309" },
-  crowded: { bg: "#fee2e2", fg: "#b91c1c" },
+/** Google-Maps-style: type where you're going (a stop), the app picks the bus. Direct rides only; the bundled data has no transfer graph. */
+const walkCache = new Map<string, { coords: [number, number][]; meters: number; secs: number } | null>();
+
+/** Real walking path along streets (OpenStreetMap foot routing). Null until it loads, or if the service is unreachable. */
+function useWalkPath(from: [number, number] | null, to: [number, number] | null) {
+  const key = from && to ? `${from.join(",")};${to.join(",")}` : "";
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!from || !to || walkCache.has(key)) return;
+    const ctrl = new AbortController();
+    fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`, { signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((j) => {
+        const r = j?.routes?.[0];
+        walkCache.set(key, r ? { coords: r.geometry.coordinates.map(([lon, lat]: [number, number]) => [lat, lon]), meters: r.distance, secs: r.duration } : null);
+        bump((n) => n + 1);
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) {
+          walkCache.set(key, null);
+          bump((n) => n + 1);
+        }
+      });
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return key ? walkCache.get(key) ?? null : null;
+}
+
+const LABEL_PILL: Record<string, { bg: string; fg: string }> = {
+  "Near empty": { bg: "#dcfce7", fg: "#15803d" },
+  "Seats likely": { bg: "#dcfce7", fg: "#15803d" },
+  "Fairly quiet": { bg: "#fef3c7", fg: "#b45309" },
+  Busy: { bg: "#fef3c7", fg: "#b45309" },
+  Crowded: { bg: "#fee2e2", fg: "#b91c1c" },
 };
 
-/** Google-Maps-style: type where you're going (a stop), the app picks the bus. Direct rides only; the bundled data has no transfer graph. */
+function DepartureCard({
+  d,
+  leaveMin,
+  isNowMode,
+  arriveBy,
+  boardName,
+  hours,
+}: {
+  d: Departure;
+  leaveMin: number;
+  isNowMode: boolean;
+  arriveBy: number | null;
+  boardName: string;
+  hours: ReturnType<typeof adviseRide>["hours"] | null;
+}) {
+  const leavingNow = d.dayOffset === 0 && d.leaveAt === leaveMin;
+  const title =
+    d.status === "late"
+      ? `Can't make ${fmtHM(arriveBy ?? 0)}`
+      : d.status === "fallback"
+        ? arriveBy !== null
+          ? "No quiet bus in time · least crowded"
+          : "No quiet bus left · least crowded"
+        : "Best time to leave";
+  const big = d.status === "late" ? `~${fmtHM(d.arriveAt)}` : leavingNow ? (isNowMode ? "Now" : fmtHM(d.leaveAt)) : fmtHM(d.leaveAt);
+  const pill = LABEL_PILL[d.label] ?? LABEL_PILL.Busy;
+  return (
+    <div className="mt-2 rounded-xl border border-neutral-200 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] text-neutral-500">{title}</div>
+          <div className="text-xl font-extrabold leading-tight">
+            {d.status === "late" ? <span className="text-sm font-semibold text-neutral-500">earliest arrival </span> : null}
+            {big}
+            {d.dayOffset === 1 && <span className="text-xs font-semibold text-neutral-500"> tomorrow</span>}
+          </div>
+        </div>
+        <span className="text-xs font-semibold rounded-full px-2.5 py-1 shrink-0" style={{ background: pill.bg, color: pill.fg }}>
+          {d.label}
+        </span>
+      </div>
+      <div className="text-[11px] text-neutral-500 mt-1 truncate">
+        {d.status === "late" ? `Leave now · board ${fmtHM(d.boardAt)} at ${boardName}` : `Board ${fmtHM(d.boardAt)} at ${boardName}`} · arrive ~{fmtHM(d.arriveAt)}
+      </div>
+      {hours && d.dayOffset === 0 && <CrowdStrip hours={hours} pick={Math.floor(d.boardAt / 60)} from={Math.floor(leaveMin / 60)} />}
+    </div>
+  );
+}
+
+/** Estimated crowding per hour (05-22) for the chosen bus. The dashed line is the "good enough" cutoff: halfway up the orange band. */
+function CrowdStrip({ hours, pick, from }: { hours: ReturnType<typeof adviseRide>["hours"]; pick: number; from: number }) {
+  const shown = hours.filter((h) => h.hour >= 5 && h.hour <= 22);
+  return (
+    <div className="mt-2">
+      <div className="relative flex items-end gap-[2px] h-9">
+        <div className="absolute inset-x-0 border-t border-dashed border-neutral-400" style={{ bottom: "60%" }} />
+        {shown.map((h) => (
+          <div
+            key={h.hour}
+            className="flex-1 rounded-t-sm"
+            title={`${String(h.hour).padStart(2, "0")}:00`}
+            style={{
+              height: `${Math.max(6, (h.index ?? 0) * 100)}%`,
+              background: h.level ? LEVEL_COLOR[h.level] : "#e5e7eb",
+              opacity: h.hour === pick ? 1 : h.hour < from ? 0.2 : 0.45,
+              outline: h.hour === pick ? "2px solid #111" : undefined,
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[9px] text-neutral-400 mt-0.5">
+        <span>05</span>
+        <span>12</span>
+        <span>18</span>
+        <span>22</span>
+      </div>
+    </div>
+  );
+}
+
 function SearchScreen({
   routes,
   clock,
@@ -165,7 +275,11 @@ function SearchScreen({
 }) {
   const [query, setQuery] = useState(dest ?? "");
   const [planIdx, setPlanIdx] = useState(0);
-  const [leaveMin, setLeaveMin] = useState<number>(() => jakartaMinutesOfDay(clock.now));
+  // Leave time follows the clock ("now") until the rider sets one.
+  const [leaveSet, setLeaveSet] = useState<number | null>(null);
+  const [arriveBy, setArriveBy] = useState<number | null>(null);
+  const nowMin = jakartaMinutesOfDay(clock.now);
+  const leaveMin = leaveSet ?? nowMin;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -177,12 +291,18 @@ function SearchScreen({
   const plan = plans[Math.min(planIdx, Math.max(0, plans.length - 1))];
   const route = plan ? routes.find((r) => r.route_id === plan.routeId) ?? null : null;
   const fleet = plan ? getSnapshotFleet(plan.routeId) : null;
-  // Recompute per demo hour, not every clock tick.
-  const hourKey = Math.floor(clock.now.getTime() / 3600000);
+  const walkPath = useWalkPath(plan ? [DEMO_LOCATION.lat, DEMO_LOCATION.lon] : null, plan?.board.position ?? null);
+  const walkMeters = walkPath?.meters ?? (plan ? plan.walkMeters * 1.3 : 0);
+  const walkMin = walkPath ? Math.max(1, Math.round(walkPath.secs / 60)) : Math.max(1, Math.round(walkMeters / 75));
+  const rideMin = plan ? (plan.rideSecs !== null && plan.rideSecs > 0 ? Math.max(1, Math.round(plan.rideSecs / 60)) : plan.rideStops * 2) : 0;
+  // The crowding curve depends on the Jakarta day (weekday vs weekend), not the minute.
+  const dayKey = Math.floor((clock.now.getTime() + 7 * 3600000) / 86400000);
+  const dayDate = useMemo(() => new Date(dayKey * 86400000 - 7 * 3600000 + 12 * 3600000), [dayKey]);
   const departure = useMemo(
-    () => (fleet && plan ? bestDeparture(fleet.directions, plan.directionIndex, new Date(hourKey * 3600000), leaveMin) : null),
-    [fleet, plan, leaveMin, hourKey]
+    () => (fleet && plan ? planDeparture(fleet.directions, plan.directionIndex, dayDate, { leaveMin, arriveByMin: arriveBy, walkMin, rideMin }) : null),
+    [fleet, plan, dayDate, leaveMin, arriveBy, walkMin, rideMin]
   );
+  const dayHours = useMemo(() => (fleet && plan ? adviseRide(fleet.directions, plan.directionIndex, dayDate).hours : null), [fleet, plan, dayDate]);
   const shortName = (id: string) => routes.find((r) => r.route_id === id)?.route_short_name ?? id;
   const colorOf = (id: string) => routes.find((r) => r.route_id === id)?.route_color ?? "666666";
 
@@ -255,7 +375,14 @@ function SearchScreen({
         <>
           <div className="relative flex-1 min-h-0">
             <MapView
-              lines={plan ? [{ positions: [here, plan.board.position], color: "#9ca3af" }, { positions: plan.segment, color: `#${colorOf(plan.routeId)}` }] : []}
+              lines={
+                plan
+                  ? [
+                      { positions: walkPath?.coords ?? [here, plan.board.position], color: TJ_BLUE, dashArray: "1 9" },
+                      { positions: plan.segment, color: `#${colorOf(plan.routeId)}` },
+                    ]
+                  : []
+              }
               ends={plan ? { start: plan.board.position, end: plan.alight.position } : undefined}
               buses={[]}
               fit={!!plan}
@@ -278,47 +405,57 @@ function SearchScreen({
                   <div className="min-w-0">
                     <div className="font-bold text-[15px] leading-tight truncate">To {plan.alight.name}</div>
                     <div className="text-xs text-neutral-500 truncate">
-                      Walk {walk(plan.walkMeters)} to {plan.board.name} · {plan.rideStops} {plan.rideStops === 1 ? "stop" : "stops"}
-                      {plan.rideSecs !== null && plan.rideSecs > 0 ? ` · ~${Math.max(1, Math.round(plan.rideSecs / 60))} min` : ""}
+                      Walk {walk(walkMeters)} ({walkMin} min) to {plan.board.name} · {plan.rideStops} {plan.rideStops === 1 ? "stop" : "stops"} · ~{rideMin} min
                     </div>
                   </div>
                 </div>
 
-                {departure && (
-                  <div className="mt-3 rounded-xl border border-neutral-200 px-3 py-2.5 flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] text-neutral-500">{departure.quiet ? "Best time to leave" : "Least crowded time"}</div>
-                      <div className="text-xl font-extrabold leading-tight">
-                        {departure.isNow ? "Now" : `${String(departure.hour).padStart(2, "0")}:00`}
-                        {departure.dayOffset === 1 && <span className="text-xs font-semibold text-neutral-500"> tomorrow</span>}
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold rounded-full px-2.5 py-1" style={{ background: LEVEL_PILL[departure.level].bg, color: LEVEL_PILL[departure.level].fg }}>
-                      {departure.nearEmpty ? "Near empty" : departure.quiet ? "Seats likely" : LEVEL_TEXT[departure.level]}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
+                  <label className="rounded-lg border border-neutral-200 px-2.5 py-1.5">
+                    <span className="flex justify-between">
+                      Leave after
+                      {leaveSet !== null && (
+                        <button onClick={() => setLeaveSet(null)} className="font-semibold" style={{ color: TJ_BLUE }}>
+                          Now
+                        </button>
+                      )}
                     </span>
-                  </div>
-                )}
-
-                <div className="mt-2 flex items-center justify-between text-xs text-neutral-500">
-                  <label className="flex items-center gap-2">
-                    Leave after
                     <input
                       type="time"
                       step={60}
                       value={fmtHM(leaveMin)}
-                      onChange={(e) => {
-                        const m = parseHM(e.target.value);
-                        if (m !== null) setLeaveMin(m);
-                      }}
-                      className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-neutral-800"
+                      onChange={(e) => setLeaveSet(parseHM(e.target.value))}
+                      className="w-full bg-transparent text-sm font-semibold text-neutral-900 outline-none"
                     />
                   </label>
-                  {plans.length > 1 && (
+                  <label className="rounded-lg border border-neutral-200 px-2.5 py-1.5">
+                    <span className="flex justify-between">
+                      Arrive by
+                      {arriveBy !== null && (
+                        <button onClick={() => setArriveBy(null)} className="font-semibold" style={{ color: TJ_BLUE }} aria-label="Clear arrive-by time">
+                          Clear
+                        </button>
+                      )}
+                    </span>
+                    <input
+                      type="time"
+                      step={60}
+                      value={arriveBy === null ? "" : fmtHM(arriveBy)}
+                      onChange={(e) => setArriveBy(e.target.value ? parseHM(e.target.value) : null)}
+                      className="w-full bg-transparent text-sm font-semibold text-neutral-900 outline-none"
+                    />
+                  </label>
+                </div>
+
+                {departure && <DepartureCard d={departure} leaveMin={leaveMin} isNowMode={leaveSet === null} arriveBy={arriveBy} boardName={plan.board.name} hours={dayHours} />}
+
+                {plans.length > 1 && (
+                  <div className="mt-2 text-right text-xs">
                     <button onClick={() => setPlanIdx((i) => (i + 1) % plans.length)} className="font-semibold" style={{ color: TJ_BLUE }}>
                       Other route ({plans.length - 1})
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <button onClick={() => openRoute(route, plan.directionIndex)} className="mt-3 w-full rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: TJ_BLUE }}>
                   See live buses
