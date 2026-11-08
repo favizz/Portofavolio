@@ -79,7 +79,22 @@ function BottomNav({ onHome }: { onHome: () => void }) {
   );
 }
 
-function HomeScreen({ clock, openRoutes, openSearch }: { clock: SimClock; openRoutes: () => void; openSearch: () => void }) {
+/** Google-Maps-style "back to my location" button. */
+function LocateButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
+  return (
+    <button onClick={onClick} aria-label="Show my location" className={`absolute z-[650] w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center ${className}`}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={TJ_BLUE} strokeWidth="2.2" strokeLinecap="round">
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" fill={TJ_BLUE} />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+      </svg>
+    </button>
+  );
+}
+
+function HomeScreen({ openRoutes, openSearch }: { openRoutes: () => void; openSearch: () => void }) {
+  const [focusKey, setFocusKey] = useState(0);
+  const here: [number, number] = [DEMO_LOCATION.lat, DEMO_LOCATION.lon];
   const quick = [
     { label: "Route", icon: "⤳", onClick: openRoutes },
     { label: "Bus Stop", icon: "▥" },
@@ -94,12 +109,13 @@ function HomeScreen({ clock, openRoutes, openSearch }: { clock: SimClock; openRo
         </div>
       </div>
       <div className="relative flex-1 min-h-0">
-        <MapView lines={[]} buses={[]} fit={false} />
-        <ClockControl clock={clock} />
+        <MapView lines={[]} buses={[]} fit={false} center={here} zoom={16} myLocation={{ position: here, label: "You" }} focusKey={focusKey} />
+        <LocateButton onClick={() => setFocusKey((k) => k + 1)} className="right-6 bottom-28" />
+        <span className="absolute right-4 bottom-8 z-[640] w-14 h-14 rounded-full animate-ping pointer-events-none" style={{ background: TJ_BLUE, opacity: 0.45 }} aria-hidden="true" />
         <button
           onClick={openSearch}
           aria-label="Search destination"
-          className="absolute right-4 bottom-8 z-[650] w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center"
+          className="absolute right-4 bottom-8 z-[650] w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center ring-4 ring-white/70"
           style={{ background: TJ_BLUE }}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -110,16 +126,7 @@ function HomeScreen({ clock, openRoutes, openSearch }: { clock: SimClock; openRo
       </div>
       <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
         <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
-        <div className="rounded-xl p-3 text-white flex items-center justify-between gap-3" style={{ background: TJ_BLUE }}>
-          <div>
-            <div className="font-bold text-sm">CrowdEase</div>
-            <div className="text-xs text-blue-100">See how full your bus is before it arrives.</div>
-          </div>
-          <button onClick={openSearch} className="bg-white text-xs font-semibold rounded-lg px-3 py-2 shrink-0" style={{ color: TJ_BLUE }}>
-            Try it
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mt-3">
+        <div className="grid grid-cols-4 gap-2">
           {quick.map((q) =>
             q.onClick ? (
               <button key={q.label} onClick={q.onClick} className="flex flex-col items-center gap-1 text-[11px] font-extrabold" style={{ color: TJ_BLUE }}>
@@ -222,18 +229,26 @@ function DepartureCard({
       <div className="text-[11px] text-neutral-500 mt-1 truncate">
         {d.status === "late" ? `Leave now · board ${fmtHM(d.boardAt)} at ${boardName}` : `Board ${fmtHM(d.boardAt)} at ${boardName}`} · arrive ~{fmtHM(d.arriveAt)}
       </div>
-      {hours && d.dayOffset === 0 && <CrowdStrip hours={hours} pick={Math.floor(d.boardAt / 60)} from={Math.floor(leaveMin / 60)} />}
+      {hours && d.dayOffset === 0 && <CrowdStrip hours={hours} pick={Math.floor(d.boardAt / 60)} leaveMin={leaveMin} />}
     </div>
   );
 }
 
-/** Estimated crowding per hour (05-22) for the chosen bus. The dashed line is the "good enough" cutoff: halfway up the orange band. */
-function CrowdStrip({ hours, pick, from }: { hours: ReturnType<typeof adviseRide>["hours"]; pick: number; from: number }) {
+/** How full the chosen bus gets per hour (05-22). Bus crowding, not road traffic. The dashed line is the "good enough" cutoff (halfway up the orange band); the thin blue line is the leave-after time. */
+function CrowdStrip({ hours, pick, leaveMin }: { hours: ReturnType<typeof adviseRide>["hours"]; pick: number; leaveMin: number }) {
   const shown = hours.filter((h) => h.hour >= 5 && h.hour <= 22);
+  const from = Math.floor(leaveMin / 60);
+  const leaveX = ((leaveMin / 60 - 5) / shown.length) * 100;
   return (
     <div className="mt-2">
+      <div className="text-[10px] text-neutral-400 mb-1">How full the bus is, by hour (not road traffic)</div>
       <div className="relative flex items-end gap-[2px] h-9">
         <div className="absolute inset-x-0 border-t border-dashed border-neutral-400" style={{ bottom: "60%" }} />
+        {leaveX >= 0 && leaveX <= 100 && (
+          <div className="absolute -top-1 bottom-0 z-10 w-px" style={{ left: `${leaveX}%`, background: TJ_BLUE }} title={`Leave after ${fmtHM(leaveMin)}`}>
+            <span className="absolute -top-0.5 -translate-x-1/2 w-1.5 h-1.5 rounded-full" style={{ background: TJ_BLUE }} />
+          </div>
+        )}
         {shown.map((h) => (
           <div
             key={h.hour}
@@ -281,6 +296,13 @@ function SearchScreen({
   const nowMin = jakartaMinutesOfDay(clock.now);
   const leaveMin = leaveSet ?? nowMin;
   const inputRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+  const [focusKey, setFocusKey] = useState(0);
+  // Travel day: today unless the rider picks another (Jakarta date, "YYYY-MM-DD").
+  const todayStr = new Date(clock.now.getTime() + 7 * 3600000).toISOString().slice(0, 10);
+  const [dateSet, setDateSet] = useState<string | null>(null);
+  const dateStr = dateSet ?? todayStr;
+  const isToday = dateStr === todayStr;
 
   useEffect(() => {
     if (!dest) inputRef.current?.focus();
@@ -296,7 +318,7 @@ function SearchScreen({
   const walkMin = walkPath ? Math.max(1, Math.round(walkPath.secs / 60)) : Math.max(1, Math.round(walkMeters / 75));
   const rideMin = plan ? (plan.rideSecs !== null && plan.rideSecs > 0 ? Math.max(1, Math.round(plan.rideSecs / 60)) : plan.rideStops * 2) : 0;
   // The crowding curve depends on the Jakarta day (weekday vs weekend), not the minute.
-  const dayKey = Math.floor((clock.now.getTime() + 7 * 3600000) / 86400000);
+  const dayKey = Math.floor(Date.parse(`${dateStr}T00:00:00Z`) / 86400000);
   const dayDate = useMemo(() => new Date(dayKey * 86400000 - 7 * 3600000 + 12 * 3600000), [dayKey]);
   const departure = useMemo(
     () => (fleet && plan ? planDeparture(fleet.directions, plan.directionIndex, dayDate, { leaveMin, arriveByMin: arriveBy, walkMin, rideMin }) : null),
@@ -345,7 +367,7 @@ function SearchScreen({
         </div>
         <div className="flex items-center gap-2 text-xs text-neutral-500 mt-2 ml-11">
           <span className="w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ background: TJ_BLUE }} />
-          From your location (demo)
+          From your location
         </div>
       </div>
 
@@ -386,11 +408,14 @@ function SearchScreen({
               ends={plan ? { start: plan.board.position, end: plan.alight.position } : undefined}
               buses={[]}
               fit={!!plan}
-              fitKey={plan ? `${plan.routeId}-${plan.directionIndex}-${plan.alight.index}` : ""}
+              fitPoints={plan ? [here, plan.board.position, ...(walkPath?.coords ?? [])] : undefined}
+              fitKey={plan ? `${plan.routeId}-${plan.directionIndex}-${plan.alight.index}-${walkPath ? 1 : 0}` : ""}
               center={here}
-              zoom={15}
-              myLocation={{ position: here, label: "You (demo)" }}
+              zoom={16}
+              myLocation={{ position: here, label: "You" }}
+              focusKey={focusKey}
             />
+            <LocateButton onClick={() => setFocusKey((k) => k + 1)} className="right-3 bottom-8" />
           </div>
           <div className="-mt-4 relative z-[600] rounded-t-3xl bg-white px-4 pt-2 pb-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
             <div className="mx-auto w-10 h-1 rounded-full bg-neutral-300 mb-3" />
@@ -410,8 +435,39 @@ function SearchScreen({
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
-                  <label className="rounded-lg border border-neutral-200 px-2.5 py-1.5">
+                <div className="mt-3 flex gap-2 text-[11px] text-neutral-500">
+                  <button
+                    onClick={() => {
+                      const el = dateRef.current;
+                      if (!el) return;
+                      try {
+                        el.showPicker();
+                      } catch {
+                        el.click();
+                      }
+                    }}
+                    className="relative rounded-lg border border-neutral-200 px-2 py-1.5 flex flex-col items-center justify-center shrink-0 w-14"
+                    aria-label="Pick travel date"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={TJ_BLUE} strokeWidth="2" strokeLinecap="round">
+                      <rect x="3" y="5" width="18" height="16" rx="2" />
+                      <path d="M3 10h18M8 3v4M16 3v4" />
+                    </svg>
+                    <span className="text-[10px] font-semibold text-neutral-700 whitespace-nowrap">
+                      {isToday ? "Today" : new Date(`${dateStr}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}
+                    </span>
+                    <input
+                      ref={dateRef}
+                      type="date"
+                      value={dateStr}
+                      min={todayStr}
+                      onChange={(e) => setDateSet(e.target.value && e.target.value !== todayStr ? e.target.value : null)}
+                      className="absolute inset-0 opacity-0 pointer-events-none"
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <label className="flex-1 min-w-0 rounded-lg border border-neutral-200 px-2.5 py-1.5">
                     <span className="flex justify-between">
                       Leave after
                       {leaveSet !== null && (
@@ -428,7 +484,7 @@ function SearchScreen({
                       className="w-full bg-transparent text-sm font-semibold text-neutral-900 outline-none"
                     />
                   </label>
-                  <label className="rounded-lg border border-neutral-200 px-2.5 py-1.5">
+                  <label className="flex-1 min-w-0 rounded-lg border border-neutral-200 px-2.5 py-1.5">
                     <span className="flex justify-between">
                       Arrive by
                       {arriveBy !== null && (
@@ -447,7 +503,7 @@ function SearchScreen({
                   </label>
                 </div>
 
-                {departure && <DepartureCard d={departure} leaveMin={leaveMin} isNowMode={leaveSet === null} arriveBy={arriveBy} boardName={plan.board.name} hours={dayHours} />}
+                {departure && <DepartureCard d={departure} leaveMin={leaveMin} isNowMode={leaveSet === null && isToday} arriveBy={arriveBy} boardName={plan.board.name} hours={dayHours} />}
 
                 {plans.length > 1 && (
                   <div className="mt-2 text-right text-xs">
@@ -881,7 +937,7 @@ export default function PhoneApp({ routes }: { routes: AppRoute[] }) {
       <div className="relative w-full max-w-[400px] h-dvh md:h-[780px] md:rounded-[2.2rem] md:border-[6px] md:border-neutral-800 md:shadow-2xl overflow-hidden flex flex-col bg-white">
         {screen === "home" && (
           <>
-            <HomeScreen clock={clock} openRoutes={() => setScreen("routes")} openSearch={() => {
+            <HomeScreen openRoutes={() => setScreen("routes")} openSearch={() => {
                 setSearchDest(null);
                 setScreen("search");
               }} />

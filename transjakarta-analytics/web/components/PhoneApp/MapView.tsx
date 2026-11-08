@@ -35,13 +35,22 @@ export interface MyLocation {
   label: string;
 }
 
-function Fit({ lines, fitKey }: { lines: MapLine[]; fitKey: string }) {
+function Fit({ points, fitKey }: { points: [number, number][]; fitKey: string }) {
   const map = useMap();
   useEffect(() => {
-    const pts = lines.flatMap((l) => l.positions);
-    if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [24, 24] });
+    if (points.length > 1) map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 17 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, map]);
+  return null;
+}
+
+/** Flies back to `position` each time `focusKey` changes (the "my location" button). */
+function Focus({ position, focusKey }: { position: [number, number]; focusKey: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (focusKey > 0) map.flyTo(position, 16, { duration: 0.6 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey, map]);
   return null;
 }
 
@@ -97,6 +106,8 @@ export default function MapView({
   center = [-6.2, 106.85],
   zoom = 12,
   myLocation,
+  fitPoints,
+  focusKey = 0,
 }: {
   lines: MapLine[];
   stops?: MapStop[];
@@ -107,6 +118,9 @@ export default function MapView({
   center?: [number, number];
   zoom?: number;
   myLocation?: MyLocation;
+  /** Fit to these points instead of every line (e.g. just you and your boarding stop). */
+  fitPoints?: [number, number][];
+  focusKey?: number;
 }) {
   return (
     <MapContainer
@@ -121,7 +135,8 @@ export default function MapView({
       style={{ height: "100%", width: "100%", background: "#eee" }}
     >
       <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      {fit && <Fit lines={lines} fitKey={fitKey} />}
+      {fit && <Fit points={fitPoints ?? lines.flatMap((l) => l.positions)} fitKey={fitKey} />}
+      {myLocation && <Focus position={myLocation.position} focusKey={focusKey} />}
       {lines.map((l, i) => (
         <Polyline key={`c${i}`} positions={l.positions} pathOptions={{ color: "#fff", weight: 9, opacity: l.dashArray ? 0 : 0.95 }} />
       ))}

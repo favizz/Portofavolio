@@ -12,10 +12,10 @@ export interface SimClock {
   toLive: () => void;
 }
 
-/** A demo clock. Starts at the real Jakarta time but runs fast (default 60x) so buses visibly move. `tickMs` is how often the UI refreshes. */
+/** A demo clock. Follows the device's real time; the live-bus screen can speed it up so buses visibly move. `tickMs` is how often the UI refreshes. */
 export function useSimClock(tickMs: number): SimClock {
   useNow(tickMs);
-  const [s, setS] = useState(() => ({ base: Date.now(), setAt: Date.now(), speed: 60, live: false }));
+  const [s, setS] = useState(() => ({ base: Date.now(), setAt: Date.now(), speed: 1, live: true }));
   const now = new Date(s.base + (Date.now() - s.setAt) * s.speed);
   return {
     now,
